@@ -20,8 +20,11 @@
 	margin-left:5px;
 	margin-right:5px;
 	float:left;
-	-khtml-user-select:none;
+	user-select:none;
+	-o-user-select:none;
 	-moz-user-select:none;
+	-khtml-user-select:none;
+	-webkit-user-select:none;
 }
 
 .day, .dayPayday, .dayLosingHours, .dayWeekend, .dayVacation, .dayVacationInsufficient, .dayReference, .dayPreReference {
@@ -291,6 +294,13 @@ function MonthTable(year, month) {
 	titleTdCell.align = 'center';
 	titleTdCell.innerHTML = kMonthNames[month] + kNonBreakingSpace + year;
 
+	var today = new Date();
+	var todayDayOfMonth = 0;
+	if (today.getFullYear() == year && today.getMonth() == month) {
+		todayDayOfMonth = today.getDate();
+		titleTdCell.style.backgroundColor = '#CCFFFF';
+	}
+
 	var monthDate = new Date(year, month, 1);
 	var monthLength = MonthLength(year, month);
 	var firstDayIndex = monthDate.getDay();
@@ -307,6 +317,9 @@ function MonthTable(year, month) {
 			var cell = row.insertCell(dayOfWeek);
 			if (firstDayIndex <= dayIndex && dayIndex <= lastDayIndex) {
 				var dayOfMonth = dayIndex - firstDayIndex + 1;
+				if (dayOfMonth == todayDayOfMonth) {
+					cell.style.textDecoration = "underline";
+				}
 				cell.innerHTML = String(dayOfMonth);
 				dayCells.push(cell);
 			} else {
