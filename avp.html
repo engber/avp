@@ -368,6 +368,19 @@ function IsPayday(date) {
 	//
 	// So, now I'm using:
 	//  * 1st payday is the first Friday occurring after the 3rd.
+	//
+	// This fails for 2014:
+	//
+	//       January 2014
+	//   Su Mo Tu We Th Fr Sa
+	//             1  2  3  4 <- first payday was the 3rd
+	//    5  6  7  8  9 10 11
+	//   12 13 14 15 16 17 18
+	//   19 20 21 22 23 24 25
+	//   26 27 28 29 30 31
+	//
+	// So, now I'm using:
+	//  * 1st payday is the first Friday occurring after the 2rd.
 
 	// Subsequent paydays are every two weeks thereafter.
 
@@ -410,8 +423,15 @@ function IsPayday(date) {
 			// firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
 
 			// 1st payday is the first Friday occurring after the 3rd.
+			//var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
+			//if (firstPaydayOffset < 3) {
+			//	firstPaydayOffset += 7;
+			//}
+			//firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
+
+			// 1st payday is the first Friday occurring after the 2nd.
 			var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			if (firstPaydayOffset < 3) {
+			if (firstPaydayOffset < 2) {
 				firstPaydayOffset += 7;
 			}
 			firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
