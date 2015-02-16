@@ -1,0 +1,1013 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<meta name="author" content="Michael S. Engber">
+	<meta name="copyright" content="&copy copyright 2006 Michael S. Engber">
+
+	<title>Apple Vacation Planner</title>
+
+<style type="text/css">
+
+.mouseOverHours {
+	font-size:14px;
+	text-align:center;
+}
+
+.month {
+	font-size:12px;
+	margin-left:5px;
+	margin-right:5px;
+	float:left;
+	-khtml-user-select:none;
+	-moz-user-select:none;
+}
+
+.day, .dayPayday, .dayPaydayLosingHours, .dayWeekend, .dayVacation, .dayVacationIllegal, .dayReference, .dayPreReference {
+	font-size:12px;
+	text-align:right;
+}
+
+.dayPayday, dayPaydayLosingHours {
+	font-weight:bold;
+}
+
+.dayPaydayLosingHours {
+	color:#FF0000;
+}
+
+.dayWeekend {
+	color:#606060;
+}
+
+.dayVacation {
+	color:#00A000;
+}
+
+.dayVacationIllegal {
+	color:#FF0000;
+}
+
+.dayReference {
+	font-weight:bold;
+}
+
+.dayPreReference {
+	color:#606060;
+}
+
+.popupMenu {
+	border:1px solid black;
+	background-color:#FFFFFF;
+	float:left;
+	position:absolute;
+	-khtml-user-select:none;
+	-moz-user-select:none;
+}
+
+.popupMenuItem, .popupMenuItemHilighted {
+	font-size:12px;
+	text-align:right;
+	padding-left:5px;
+	padding-right:5px;
+}
+
+.popupMenuItemHilighted {
+	color:#FFFFFF;
+	background-color:#000000;
+}
+
+</style>
+
+<script>
+
+function log(str)
+{
+	var div = document.createElement('div');
+	div.innerHTML = str;
+	document.getElementById('debug').appendChild(div);
+}
+
+var kNonBreakingSpace = "\u00A0";
+var kEmDash = "\u0097";
+
+var kMillisecondsPerDay = 24*60*60*1000;
+var kMonthNames = ["January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+var kMaxAccrualHours = 240;
+
+var gHireAndReferenceDateUnset = true;
+var gHireAnniversaries;
+var gReferenceDate;
+var gReferenceDateHours;
+var gMonthsDisplayed;
+
+var gCalendarDates;
+
+var gMouseOverCell;
+var gSaveVacationDaysTimerId;
+
+function BFindLeftIndex(values, value) {
+	// Returns the index of the leftmost elt >= value.
+	// Use result for the index to insert value.
+	var l_index = 0;
+	var r_index = values.length - 1;
+	while (l_index <= r_index) {
+		var mid_index = (l_index + r_index) >> 1;
+		var mid_value = values[mid_index];
+		if (value > mid_value) {
+			l_index = mid_index + 1;
+		} else {
+			r_index = mid_index - 1;
+		}
+	}
+	return l_index;
+}
+
+function BFindIndex(values, value) {
+	// Returns the index of value in values or undefined if not found.
+	var result = undefined;
+	var index = BFindLeftIndex(values, value);
+	if (index < values.length) {
+		var foundValue = values[index];
+		// can't use == because it's pointer equality for objects
+		if (!(value < foundValue || value > foundValue)) {
+			result = index;
+		}
+	}
+	return result;
+}
+
+function PopupMenuSelect(items, mouseDownEvent, callback) {
+
+	var GetTarget = function(event) {
+		var target = event.target;
+		// ignore text nodes
+		return (target.nodeType === Node.TEXT_NODE) ? target.parentNode : target;
+	}
+
+	var mouseDownElement = GetTarget(mouseDownEvent);
+	var popupParentElement = document.body;
+	var popupMenuElement = document.createElement('div');
+	var currentMenuItemIndex = undefined;
+	var movedOffMouseDownElement = false;
+	
+	var MouseDownListener = function(event) {
+		var result = undefined;
+		var target = GetTarget(event);
+		if (target === mouseDownElement) {
+			// Prevent a dismissing click on the mouseDownElement from popping up a new menu.
+			event.stopPropagation();
+			event.preventDefault();
+		} else if (target.parentNode === popupMenuElement) {
+			result = currentMenuItemIndex;
+			event.stopPropagation();
+			event.preventDefault();
+		}
+		EndPopupMenuSelect(result);
+	}
+
+	var MouseUpListener = function(event) {
+		var target = GetTarget(event);
+		if (target === mouseDownElement && !movedOffMouseDownElement) {
+			// Releasing over the mouseDownElement means leave the menu up - dismiss on mouse down.
+		} else {
+			// Releasing anywhere else means we're done.
+			var result = undefined;
+			if (target.parentNode === popupMenuElement) {
+				result = currentMenuItemIndex;
+			}
+			event.stopPropagation();
+			event.preventDefault();
+			EndPopupMenuSelect(result);
+		}
+	}
+	
+	var SupressingListener = function(event) {
+		var target = GetTarget(event);
+		
+		// Convenient spot to detect moving off the mouseDownElement.
+		if (target === mouseDownElement && event.type == 'mouseout') {
+			movedOffMouseDownElement = true;
+		}
+		
+		if (target.parentNode !== popupMenuElement) {
+			event.stopPropagation();
+			event.preventDefault();
+		}
+	}
+	
+	var EndPopupMenuSelect = function(result) {
+		popupParentElement.removeChild(popupMenuElement);
+		document.removeEventListener('mousedown', MouseDownListener, true)
+		document.removeEventListener('mouseup', MouseUpListener, true);
+		document.removeEventListener('mouseover', SupressingListener, true);
+		document.removeEventListener('mouseout', SupressingListener, true);
+		document.removeEventListener('mousemove', SupressingListener, true);
+		callback(result);
+	}
+		
+	document.addEventListener('mousedown', MouseDownListener, true);
+	document.addEventListener('mouseup', MouseUpListener, true);
+	document.addEventListener('mouseover', SupressingListener, true);
+	document.addEventListener('mouseout', SupressingListener, true);
+	document.addEventListener('mousemove', SupressingListener, true);
+
+	var MouseTrackFn = function(itemIndex, itemElement, itemClass) {
+		return function(event) {
+			itemElement.className = itemClass;
+			currentMenuItemIndex = itemIndex;
+		}
+	}
+	
+	var i;
+	var itemElements = new Array;
+	for (i in items) {
+		var item = items[i];
+		var itemElement = document.createElement('div');
+		itemElement.innerHTML = item;
+		itemElement.className = 'popupMenuItem';
+		itemElement.onmouseover = MouseTrackFn(i, itemElement, 'popupMenuItemHilighted');
+		itemElement.onmouseout = MouseTrackFn(undefined, itemElement, 'popupMenuItem');
+		popupMenuElement.appendChild(itemElement);
+		itemElements.push(itemElement);
+	}
+	
+	popupParentElement.appendChild(popupMenuElement);
+	popupMenuElement.className = 'popupMenu';
+
+	var menuTop = mouseDownElement.offsetTop + mouseDownElement.offsetHeight;
+	var menuLeft = mouseDownElement.offsetLeft;
+	var offsetParent = mouseDownElement.offsetParent;
+
+	while (offsetParent) {
+		menuLeft += offsetParent.offsetLeft;
+		menuTop += offsetParent.offsetTop;
+		offsetParent = offsetParent.offsetParent
+	}
+
+	popupMenuElement.style.top = menuTop + "px";
+	popupMenuElement.style.left = menuLeft + "px";
+
+	mouseDownEvent.stopPropagation();
+	mouseDownEvent.preventDefault();
+	
+	return itemElements;
+}
+
+function MonthLength(year, month) {
+	switch (month) {
+		case  3: // Apr
+		case  5: // Jun
+		case  8: // Sep
+		case 10: // Nov
+			return 30;
+		case 1:  // Feb
+			var leapYear = (year % 4 === 0) && (year % 100 !== 0 || year % 400 === 0);
+			return leapYear ? 29 : 28;
+		default:
+			return 31;
+	}
+}
+
+function MonthDates(year, month) {
+	var result = new Array;
+	var monthLength = MonthLength(year, month);
+	var i;
+	for(i = 1; i <= monthLength; ++i) {
+		result.push(new Date(year, month, i));
+	}
+	return result;
+}
+
+function MonthTable(year, month) {
+	var table = document.createElement('table');
+	table.className = 'month';
+	
+	// First row is the title - e.g. "January 2006"
+	var titleRow = table.insertRow(0);
+	var titleTdCell = titleRow.insertCell(0);
+	titleTdCell.colSpan = 7;
+	titleTdCell.align = 'center';
+	titleTdCell.innerHTML = kMonthNames[month] + kNonBreakingSpace + year;
+
+	var monthDate = new Date(year, month, 1);
+	var monthLength = MonthLength(year, month);
+	var firstDayIndex = monthDate.getDay();
+	var lastDayIndex = firstDayIndex + monthLength - 1;
+	var dayIndex = 0;
+	var dayCells = new Array;
+	
+	// Add 5 rows for the days
+	var week;
+	var dayOfWeek;
+	for (week = 1; week < 8; ++week) {
+		var row = table.insertRow(week);
+		for (dayOfWeek = 0; dayOfWeek < 7; ++dayOfWeek) {
+			var cell = row.insertCell(dayOfWeek);
+			if (firstDayIndex <= dayIndex && dayIndex <= lastDayIndex) {
+				var dayOfMonth = dayIndex - firstDayIndex + 1;
+				cell.innerHTML = String(dayOfMonth);
+				dayCells.push(cell);
+			} else {
+				// Force the last row's creation to keep each table the same height & avoid wrapping problems.
+				cell.innerHTML = kNonBreakingSpace;
+			}
+			cell.className = 'day';
+			++dayIndex;
+		}
+	}
+
+	table.dayCells = dayCells;
+	return table;
+}
+
+
+function IsPayday(date) {
+	// 1st payday is the 2nd Friday of the year. Subseqent paydays are every two weeks thereafter.
+	// This calculation is a bit trickier than one would initially expect.
+	
+	var result = false;
+	
+	if (date.getDay() == 5) {
+		
+		// You might think we can always use the same first payday (e.g. Jan 9, 1970) as our base date.
+		// This doesn't work because a year isn't a multiple of a week.
+		// E.g. The first payday for 2005 is not 2 weeks after the last payday of 2004.
+		var cachedPaydays = IsPayday.cachedFirstPaydays;
+		
+		if (cachedPaydays === undefined) {
+			cachedPaydays = new Object;
+			IsPayday.cachedFirstPaydays = cachedPaydays;
+		}
+		
+		var year = date.getFullYear();
+		var firstPayday = cachedPaydays[year];
+		
+		if (firstPayday === undefined) {
+			var firstDay = new Date(year, 0, 1);
+			var firstFridayOffset = (7 + 5 - firstDay.getDay()) % 7;
+			firstPayday = new Date(firstDay.getTime() + (firstFridayOffset + 7)*kMillisecondsPerDay);
+			cachedPaydays[year] = firstPayday;
+		}
+		
+		// Rounding needed because daylight savings time throws our delta off by an hour.
+		result = Math.round((date - firstPayday) / kMillisecondsPerDay) % 14 === 0;
+	}
+	return result;
+}
+
+function IsWeekday(date) {
+	var dayOfWeek = date.getDay();
+	return dayOfWeek !== 0 && dayOfWeek !== 6;
+}
+
+function AmericanDateString(date) {
+	var year = date.getFullYear();
+	var month = date.getMonth();
+	var dayNum = date.getDate();
+	if (isNaN(year) || isNaN(month) || isNaN(dayNum)) {
+		return "invalid date";
+	} else {
+		return (month + 1) + "/" + dayNum + "/" + year;
+	}
+}
+
+function SetHireDate(hireDate) {
+	var year = hireDate.getFullYear();
+	var month = hireDate.getMonth();
+	var dayNum = hireDate.getDate();
+	
+	// What if you started on Feb 29 ?
+	
+	gHireAnniversaries = new Array;
+	
+	var i;
+	for (i = 0; i < 10; ++i) {
+		gHireAnniversaries.push(new Date(year + i, month, dayNum));
+	}
+}
+
+function HoursEarned(payday) {
+	// Assumes caller has ensured payday is actually a legit payday.
+	var result;
+	if (payday < gHireAnniversaries[6]) {
+		if (payday < gHireAnniversaries[4]) {
+			if (payday < gHireAnniversaries[3]) {
+				result = 3.70;
+			} else {
+				result = 4.62;
+			}
+		} else {
+			if (payday < gHireAnniversaries[5]) {
+				result = 4.92;
+			} else {
+				result = 5.23;
+			}
+		}
+	} else {
+		if (payday < gHireAnniversaries[8]) {
+			if (payday < gHireAnniversaries[7]) {
+				result = 5.54;
+			} else {
+				result = 5.85;
+			}
+		} else {
+			if (payday < gHireAnniversaries[9]) {
+				result = 6.15;
+			} else {
+				result = 6.46;
+			}
+		}
+	}
+	return result;
+}
+
+function SetReferenceDate(date, hours) {
+	gReferenceDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	gReferenceDateHours = hours;
+}
+
+function DayCellClass(date) {
+	var result;
+	if (IsWeekday(date)) {
+		if (date >= gReferenceDate) {
+			if (date > gReferenceDate) {
+				if (VacationHoursSpent(date) === 0) {
+					if (IsPayday(date)) {
+						var hours = date.vacationHoursRemaining;
+						var losing = hours !== undefined && hours > kMaxAccrualHours;
+						result = losing ? 'dayPaydayLosingHours' : 'dayPayday';
+					} else {
+						result = 'day';
+					}
+				} else {
+					var hours = date.vacationHoursRemaining;
+					var illegal = hours !== undefined && hours < 0;
+					result = illegal ? 'dayVacationIllegal' : 'dayVacation';
+				}
+			} else {
+				result = 'dayReference';
+			}
+		} else {
+			result = 'dayPreReference';
+		}
+	} else {
+		result = 'dayWeekend';
+	}
+	
+	return result;
+}
+
+function CalculateVacationAccrual() {
+	var hours = gReferenceDateHours;
+	for (i in gCalendarDates) {
+		var date = gCalendarDates[i];
+		var cell = date.tableCell;
+
+		if (date < gReferenceDate) {
+			// These dates don't contribute to the calculation.
+		} else if (date > gReferenceDate) {
+		
+			if (IsPayday(date)) {
+				hours += HoursEarned(date);
+			}
+			
+			hours -= VacationHoursSpent(date);
+			
+			date.vacationHoursRemaining = hours;
+			
+			cell.className = DayCellClass(date);
+		} else {
+			date.vacationHoursRemaining = gReferenceDateHours;
+		}
+	}
+}
+
+function InitDatesAndCells(dates, cells) {
+	var i;
+	for (i in dates) {
+		var date = dates[i];
+		var cell = cells[i];
+		
+		date.tableCell = cell;
+		cell.date = date;
+		
+		if (IsWeekday(date)) {
+		
+			if (date >= gReferenceDate) {
+				if (date > gReferenceDate) {
+					cell.onmousedown = HandleUserMousedDownDay;
+				}
+				cell.onmouseover = HandleUserMousedOverDay;
+				cell.onmouseout = HandleUserMousedOutDay;
+			}
+		}
+		
+		cell.className = DayCellClass(date);
+	}
+}
+
+function VacationHoursSpent(date) {
+	return date.vacationHoursSpent === undefined ? 0 : date.vacationHoursSpent;
+}
+
+function SetVacationHoursSpent(date, hours) {
+	var curHours = date.vacationHoursSpent;
+	if (date.vacationHoursSpent != hours) {
+		if (hours && hours > 0) {
+			date.vacationHoursSpent = hours;
+		} else {
+			delete date.vacationHoursSpent;
+		}
+		var cell = date.tableCell;
+		cell.className = DayCellClass(date);
+	}
+}
+
+function EncodedVacationDays() {
+	var encodedDays = new Array;
+	var i;
+	for (i in gCalendarDates) {
+		var date = gCalendarDates[i];
+		var spent = VacationHoursSpent(date);
+		if (spent > 0) {
+			encodedDays.push(date.getTime() + ":" + spent);
+		}
+	}
+	
+	return encodedDays;
+}
+
+function AddVacationDays(encodedDays) {
+	var i;
+	for (i in encodedDays) {
+		var dateAndHours = encodedDays[i].split(":");
+		var date = new Date(Number(dateAndHours[0]));
+		var index = BFindIndex(gCalendarDates, date);
+		if (index !== undefined) {
+			SetVacationHoursSpent(gCalendarDates[index], Number(dateAndHours[1]));
+		}
+	}
+}
+
+function CreateCalendar() {
+	var calendarElement = document.getElementById('calendar');
+	var startYear = gReferenceDate.getFullYear();
+	var startMonth = gReferenceDate.getMonth();
+
+	gCalendarDates = new Array;
+	
+	var i;
+	for (i = 0; i < gMonthsDisplayed; ++i) {
+		var year = startYear + Math.floor((startMonth + i) / 12);
+		var month = (startMonth + i) % 12;
+		var monthDates = MonthDates(year, month);
+		
+		var table = MonthTable(year, month);
+		calendarElement.appendChild(table);
+		
+		InitDatesAndCells(monthDates, table.dayCells);
+		
+		gCalendarDates = gCalendarDates.concat(monthDates);
+	}
+}
+
+function RecreateCalendar() {
+
+	var calendarElement = document.getElementById('calendar');
+	while (calendarElement.childNodes.length > 0) {
+		calendarElement.removeChild(calendarElement.childNodes[0]);
+	}
+
+	var encodedDays = EncodedVacationDays();
+	
+	CreateCalendar();
+	
+	AddVacationDays(encodedDays);
+	
+	CalculateVacationAccrual();
+}
+
+function UpdateMouseOverHours() {
+	var hoursElement = document.getElementById('mouse-over-hours');
+	if (gMouseOverCell === null) {
+		hoursElement.innerHTML = kNonBreakingSpace;
+	} else {
+		var date = gMouseOverCell.date;
+		var hoursSpent = VacationHoursSpent(date);
+
+		var message = new Array;
+
+		if (hoursSpent > 0) {
+			if (hoursSpent < 8) {
+				message.push(String(hoursSpent) + " hours used");
+			} else {
+				message.push("1 day used");
+			}
+			
+			if (date.vacationHoursRemaining < 0) {
+				var hoursShort = Math.round(-date.vacationHoursRemaining*100)/100;
+				if (hoursShort < 8) {
+					message.push("short " + String(hoursShort).fontcolor("FF0000") + " hours");
+				} else {
+					message.push("short " + String(Math.round(hoursShort/8*10)/10).fontcolor("FF0000") + " days");
+				}
+			}
+		}
+
+		if (date.vacationHoursRemaining > 0) {
+			var remainOrAccumulated = (hoursSpent > 0) ? "remain" : "accumulated";
+			var hoursRemaining = Math.round(date.vacationHoursRemaining*100)/100;
+			if (date.vacationHoursRemaining < 8) {
+				message.push(hoursRemaining + " hours " + remainOrAccumulated);
+			} else {
+				message.push(Math.round(date.vacationHoursRemaining/8*10)/10 + " days (" + hoursRemaining + " hours) " + remainOrAccumulated);
+			}
+		}
+
+		if (date.vacationHoursRemaining > kMaxAccrualHours) {
+			var hoursLost = Math.round((date.vacationHoursRemaining - kMaxAccrualHours)*100)/100;
+			if (hoursLost < 8) {
+				message.push(String(hoursLost).fontcolor("FF0000") + " hours lost");
+			} else {
+				message.push(String(Math.round(hoursLost/8*10)/10).fontcolor("FF0000") + " days lost");
+			}
+		}
+
+		if (message.length === 0) {
+			message.push("no vacation accumulated");
+		}
+
+		message.push("as of " + AmericanDateString(date));
+
+		hoursElement.innerHTML = message.join(" " + kEmDash + " ");
+	}
+}
+
+function SetCookie(name, data) {
+	var expires = new Date;
+	expires.setFullYear(expires.getFullYear() + 2);
+	var str = name + "=" + escape(data) + "; expires=" + expires.toGMTString();
+	document.cookie = str;
+}
+
+function DeleteCookie(name) {
+	var expires = new Date(0);
+	var str = name + "=X" + "; expires=" + expires.toGMTString();
+	document.cookie = str;
+}
+
+function GetCookie(name) {
+	var result = null;
+	var allCookies = document.cookie;
+	
+	// Add "; " to avoid matching the suffix of another cookie.
+	var prefix = "; " + name + "=";
+	var start = allCookies.indexOf(prefix);
+
+	if (start < 0) {
+		// If it's the first cookie, there's no leading "; " .
+		prefix = name + "=";
+		if (allCookies.indexOf(prefix) === 0) {
+			start = 0;
+		}
+	}
+	
+	if (start >= 0) {
+		start += prefix.length;
+		var end = allCookies.indexOf(";", start);
+		if (end < 0) {
+			end = allCookies.length;
+		}
+		
+		result = unescape(allCookies.substring(start, end));
+	}
+	
+	return result;
+}
+
+var kVacationDaysCookieName = "vdays";
+
+function SaveVacationDaysToCookie() {
+	var encodedDays = EncodedVacationDays();
+	if (encodedDays.length > 0) {
+		SetCookie(kVacationDaysCookieName, encodedDays.toString());
+	} else {
+		DeleteCookie(kVacationDaysCookieName);
+	}
+}
+
+function AddVacationDaysFromCookie() {
+	// Caller needs to ensure no vacation days are already set.
+	var str = GetCookie(kVacationDaysCookieName);
+
+	if (str !== null) {
+		var encodedDays = str.split(",");
+		AddVacationDays(encodedDays);
+	}
+}
+
+var kHireAndReferenceDatesCookieName = "hrdates";
+
+function SaveHireAndReferenceDatesToCookie() {
+	var dataArray = [gHireAnniversaries[0].getTime(), gReferenceDate.getTime(), gReferenceDateHours, gMonthsDisplayed];
+	SetCookie(kHireAndReferenceDatesCookieName, dataArray.toString());
+}
+
+function FetchHireAndReferenceDatesFromCookie() {
+	var str = GetCookie(kHireAndReferenceDatesCookieName);
+
+	var hireDateSecs = (new Date()).getTime();
+	var referenceDateSecs = hireDateSecs;
+	var referenceDateHours = 0;
+	var monthsDisplayed = 6;
+	
+	if (str !== null) {
+		var dataStrs = str.split(",");
+		if (dataStrs.length == 4) {
+			hireDateSecs = Number(dataStrs[0]);
+			referenceDateSecs = Number(dataStrs[1]);
+			referenceDateHours = Number(dataStrs[2]);
+			monthsDisplayed = Number(dataStrs[3]);
+			
+			if (!isNaN(hireDateSecs) && !isNaN(referenceDateSecs) && !isNaN(referenceDateHours) && !isNaN(monthsDisplayed)) {
+				gHireAndReferenceDateUnset = false;
+			}
+		}
+	}
+	
+	var hireDate = new Date(hireDateSecs);
+	var referenceDate = new Date(referenceDateSecs);
+
+	SetHireDate(hireDate);
+	SetReferenceDate(referenceDate, referenceDateHours);
+	gMonthsDisplayed = monthsDisplayed;
+	
+	var hireDateElement = document.getElementById('hire-date');
+	var referenceDateElement = document.getElementById('reference-date');
+	var referenceDateHoursElement = document.getElementById('reference-date-hours');
+	var monthsDisplayedElement = document.getElementById('months-displayed');
+	
+	hireDateElement.value = AmericanDateString(hireDate);
+	referenceDateElement.value = AmericanDateString(referenceDate);
+	referenceDateHoursElement.value = referenceDateHours;
+	monthsDisplayedElement.value = monthsDisplayed;
+}
+
+function HandleUserChangedHireDate() {
+	var hireDateElement = document.getElementById('hire-date');
+	var dateSecs = Date.parse(hireDateElement.value);
+	if (isNaN(dateSecs)) {
+		hireDateElement.value = AmericanDateString(gHireAnniversaries[0]);
+	} else {
+		var date = new Date(dateSecs);
+		hireDateElement.value = AmericanDateString(date);
+		SetHireDate(date);
+		CalculateVacationAccrual();
+		SaveHireAndReferenceDatesToCookie();
+	}
+}
+
+function HandleUserChangedReferenceDate() {
+	var referenceDateElement = document.getElementById('reference-date');
+	var dateSecs = Date.parse(referenceDateElement.value);
+
+	if (isNaN(dateSecs)) {
+		referenceDateElement.value = AmericanDateString(gReferenceDate);
+	} else {
+		var date = new Date(dateSecs);	
+		referenceDateElement.value = AmericanDateString(date);
+		SetReferenceDate(new Date(date), gReferenceDateHours);
+		RecreateCalendar();
+		SaveHireAndReferenceDatesToCookie();
+	}
+}
+
+function HandleUserChangedReferenceDateHours() {
+	var referenceDateHoursElement = document.getElementById('reference-date-hours');
+	var hours = Number(referenceDateHoursElement.value);
+	
+	if (isNaN(hours)) {
+		referenceDateHoursElement.value = gReferenceDateHours;
+	} else {
+		SetReferenceDate(gReferenceDate, hours);
+		referenceDateHoursElement.value = gReferenceDateHours; // makes empty string appear as zero
+		CalculateVacationAccrual();
+		SaveHireAndReferenceDatesToCookie();
+	}
+}
+
+function HandleUserChangedMonthsDisplayed() {
+	var monthsDisplayedElement = document.getElementById('months-displayed');
+	var months = Number(monthsDisplayedElement.value);
+	if (isNaN(months)) {
+		monthsDisplayedElement.value = gMonthsDisplayed;
+	} else {
+		gMonthsDisplayed = months;
+		monthsDisplayedElement.value = months; // makes empty string appear as zero
+		RecreateCalendar();
+		SaveHireAndReferenceDatesToCookie();
+	}
+}
+
+function SaveVacationDayTimerCallback () {
+	SaveVacationDaysToCookie();
+	delete gSaveVacationDaysTimerId;
+}
+
+function UpdateAfterVactionHoursChanged() {
+	CalculateVacationAccrual();
+	UpdateMouseOverHours();
+	if (gSaveVacationDaysTimerId !== undefined) {
+		clearTimeout(gSaveVacationDaysTimerId);
+	}
+	gSaveVacationDaysTimerId = setTimeout(SaveVacationDayTimerCallback, 3000);
+}
+
+function HandleUserChangedVactionHours(date, hours) {
+	if (hours !== undefined) {
+		SetVacationHoursSpent(date, hours);
+	}
+	gMouseOverCell.style.backgroundColor = '#FFFFFF';
+	gMouseOverCell = null;
+	UpdateAfterVactionHoursChanged();
+}
+
+function HandleUserMousedDownDay(event) {
+	var cell = event.currentTarget;
+	var date = cell.date;
+	var clickCount = event.detail;
+	var changedDates = new Array;
+	var hoursSpent = VacationHoursSpent(date);
+	var newSpentHours;
+
+	if (clickCount == 1) {
+		if (event.altKey) {
+			var callback = function(hours) {HandleUserChangedVactionHours(date, hours);};
+			var itemElements = PopupMenuSelect([0,1,2,3,4,5,6,7,8], event, callback);
+			itemElements[hoursSpent].style.color = '#00A000';
+		} else {
+			newSpentHours = VacationHoursSpent(date) > 0 ? 0 : 8;
+			changedDates.push(date);
+		}
+	} else if (clickCount == 2) {
+		// double clicking makes the whole week match the day that was just set (via single click)
+		newSpentHours = hoursSpent;
+		var dayOfWeek = date.getDay();
+		var index = BFindIndex(gCalendarDates, date);
+		var startIndex = index - (dayOfWeek - 1);
+		changedDates = gCalendarDates.slice(Math.max(startIndex, 0), Math.min(startIndex + 5, gCalendarDates.length));
+	}
+
+	if (changedDates.length > 0) {
+		var i;
+		for (i in changedDates) {
+			SetVacationHoursSpent(changedDates[i], newSpentHours);
+		}
+
+		UpdateAfterVactionHoursChanged();
+	}
+
+	return true;
+}
+
+function HandleUserMousedOverDay(event) {
+	var cell = event.currentTarget;
+	gMouseOverCell = cell;
+	gMouseOverCell.style.backgroundColor = '#CFCFCF';
+	UpdateMouseOverHours();
+	return true;
+}
+
+function HandleUserMousedOutDay(event) {
+	var cell = event.currentTarget;
+	gMouseOverCell.style.backgroundColor = '#FFFFFF';
+	gMouseOverCell = null;
+	UpdateMouseOverHours();
+	return true;
+}
+
+function HandleUserShowHelp() {
+	var helpElement = document.getElementById('help');
+	var showHelpElement = document.getElementById('show-help');
+	helpElement.style.display = 'inline';
+	showHelpElement.style.visibility = 'hidden';
+	return true;
+}
+
+function HandleUserHideHelp() {
+	var helpElement = document.getElementById('help');
+	var showHelpElement = document.getElementById('show-help');
+	helpElement.style.display = 'none';
+	showHelpElement.style.visibility = 'visible';
+	return true;
+}
+
+function load() {
+	
+	FetchHireAndReferenceDatesFromCookie();
+	
+	// Show help if we failed to fetch basic info - e.g. on the 1st visit.
+	if (gHireAndReferenceDateUnset) {
+		HandleUserShowHelp();
+	}
+	
+	CreateCalendar();
+	AddVacationDaysFromCookie();
+	CalculateVacationAccrual();
+}
+
+</script>
+
+</head>
+
+<body onload='load();'>
+
+<div id='calendar'></div>
+
+<div style='clear:both;'></div>
+
+
+<div id='mouse-over-hours' class='mouseOverHours'>&nbsp;</div>
+
+
+<hr>
+
+<div style='text-align:center'>
+
+<span style='white-space:nowrap;'>
+Hire Date: <input id='hire-date' size=9 value='' onchange='HandleUserChangedHireDate();'> </input>
+</span>
+
+<span style='white-space:nowrap;'>
+Paystub Info &#151;
+<span style='font-size:smaller'>paydate:</span>
+<input id='reference-date' size=9 value='' onchange='HandleUserChangedReferenceDate();'> </input>
+<span style='font-size:smaller'>vacation-hours:</span>
+<input id='reference-date-hours' size=6 value='' onchange='HandleUserChangedReferenceDateHours();'></input>
+</span>
+
+<span style='white-space:nowrap;'>
+Months Displayed:<input id='months-displayed' size=2 value='' onchange='HandleUserChangedMonthsDisplayed();'></input>
+</span>
+
+</div>
+
+<hr>
+
+<div id='debug' style='font:12px Courier; white-space:nowrap; clear:both;'>
+</div>
+
+<div id='help' style="display:none;">
+
+<h3>Overview</h3>
+<p>
+This tool is designed to help you plan vacations by computing available vacation time for future dates &#151;
+taking into account changes in your accrual rate for years of service.
+</p>
+
+<p>
+First you must first provide your hire date and a starting point for vacation information which you can get from a recent paystub or from <a href='http://mypage.apple.com'>mypage.apple.com</a>.
+</p>
+
+<h3>Details</h3>
+
+<p>
+As you mouse over week days in the calendar their vacation hours are displayed below.
+Click on a week day to toggle whether it's a vacation day.
+Double-click to toggle the whole week. Option-click to enter less than 8 hours.
+</p>
+
+<p>
+Vacation days are marked in <span style="color:#00FF00;">green</span>.
+Paydays are in <span style="font-weight:bold;">bold</span>.
+Problem days are marked in <span style="color:#FF0000;">red</span> &#151;
+e.g. paydays on which you lose vacation hours because you're over the limit &#151; or &#151;
+vacation days for which you don't have enough accumulated hours.
+</p>
+ 
+<p>
+<h3>Warnings and Disclamers</h3>
+
+<ul>
+<li>Holidays are not taken into account. If you mark a holiday as a vacation day it will be incorrectly subtracted from your accrued vacation.</li>
+<li>It's based on information gleaned from the HR and Payroll websites &#151;  plus certain assumptions:</li>
+<ul>
+<li>The second Friday of the year is the first of 26 paydays.</li>
+<li>Vacation is earned/available as of the paydate.</li>
+<li>The accrual rate changes on the first paydate on or after your hire anniversary.</li>
+</ul>
+</ul>
+</p>
+
+<div style='text-align:center'>
+<input type=button value='Hide Help' onclick='HandleUserHideHelp();'></input>
+</div>
+
+</div>
+
+<input type=button id='show-help' value='?' style='float:right;' onclick='HandleUserShowHelp();'></input>
+
+</body>
+</html>
