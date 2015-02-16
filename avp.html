@@ -24,16 +24,16 @@
 	-moz-user-select:none;
 }
 
-.day, .dayPayday, .dayPaydayLosingHours, .dayWeekend, .dayVacation, .dayVacationIllegal, .dayReference, .dayPreReference {
+.day, .dayPayday, .dayPayPeriodEndLosingHours, .dayWeekend, .dayVacation, .dayVacationIllegal, .dayReference, .dayPreReference {
 	font-size:12px;
 	text-align:right;
 }
 
-.dayPayday, dayPaydayLosingHours {
+.dayPayday {
 	font-weight:bold;
 }
 
-.dayPaydayLosingHours {
+.dayPayPeriodEndLosingHours {
 	color:#FF0000;
 }
 
@@ -357,6 +357,10 @@ function IsPayday(date) {
 	return result;
 }
 
+function IsPayPeriodEnd(date) {
+	return date.getDay() == 5 && !IsPayday(date);
+}
+
 function IsWeekday(date) {
 	var dayOfWeek = date.getDay();
 	return dayOfWeek !== 0 && dayOfWeek !== 6;
@@ -435,9 +439,11 @@ function DayCellClass(date) {
 			if (date > gReferenceDate) {
 				if (VacationHoursSpent(date) === 0) {
 					if (IsPayday(date)) {
+						result = 'dayPayday';
+					} else if (IsPayPeriodEnd(date)) {
 						var hours = date.vacationHoursRemaining;
 						var losing = hours !== undefined && hours > kMaxAccrualHours;
-						result = losing ? 'dayPaydayLosingHours' : 'dayPayday';
+						result = losing ? 'dayPayPeriodEndLosingHours' : 'day';
 					} else {
 						result = 'day';
 					}
@@ -469,7 +475,7 @@ function CalculateVacationAccrual() {
 			// These dates don't contribute to the calculation.
 		} else if (date > gReferenceDate) {
 		
-			if (IsPayday(date)) {
+			if (IsPayPeriodEnd(date)) {
 				hours += HoursEarned(date);
 			}
 			
@@ -983,7 +989,7 @@ Double-click to toggle the whole week. Option-click to enter less than 8 hours.
 Vacation days are marked in <span style="color:#00FF00;">green</span>.
 Paydays are in <span style="font-weight:bold;">bold</span>.
 Problem days are marked in <span style="color:#FF0000;">red</span> &#151;
-e.g. paydays on which you lose vacation hours because you're over the limit &#151; or &#151;
+e.g. days on which you lose vacation hours because you're over the limit &#151; or &#151;
 vacation days for which you don't have enough accumulated hours.
 </p>
  
@@ -991,13 +997,18 @@ vacation days for which you don't have enough accumulated hours.
 <h3>Warnings and Disclamers</h3>
 
 <ul>
+
+<li>Vacation is accrued and used at the end of pay periods &#151; the Fridays that fall between paydates.</li>
+
 <li>Holidays are not taken into account. If you mark a holiday as a vacation day it will be incorrectly subtracted from your accrued vacation.</li>
+
 <li>It's based on information gleaned from the HR and Payroll websites &#151;  plus certain assumptions:</li>
 <ul>
 <li>The second Friday of the year is the first of 26 paydays.</li>
-<li>Vacation is earned/available as of the paydate.</li>
-<li>The accrual rate changes on the first paydate on or after your hire anniversary.</li>
+<li>Vacation is earned/available and used as of the pay period end &#151; not the paydate.</li>
+<li>The accrual rate changes at the end of the first pay period on or after your hire anniversary.</li>
 </ul>
+
 </ul>
 </p>
 
