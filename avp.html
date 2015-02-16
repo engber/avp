@@ -324,8 +324,44 @@ function MonthTable(year, month) {
 
 
 function IsPayday(date) {
-	// 1st payday is the Friday of second week of the year. Subsequent paydays are every two weeks thereafter.
-	// This calculation is a bit trickier than one would initially expect.
+	// The formula for the calculation of the first payday is defeating me.
+	// It may just be arbitrarily decided by payroll each year.
+	//
+	// Initially I used this rule:
+	//   * 1st payday is the second Friday of the year.
+	//
+	// But in 2005, this didn't work, New Years day fell on Sat and the second Friday wasn't the first payday.
+	//
+	//       January 2005
+	//   Su Mo Tu We Th Fr Sa
+	//                      1 <- first week of the year
+	//    2  3  4  5  6  7  8 <- first payday was the 7th
+	//    9 10 11 12 13 14 15 <- 2nd friday occurs during 3rd week of year
+	//   16 17 18 19 20 21 22
+	//   23 24 25 26 27 28 29
+	//   
+	// I surmised this was because the second Friday was during the third week of the year and I refined the rule to:
+	//   * 1st payday is the Friday of second week of the year.
+	//
+	// But, in 2012, this didn't work:
+	//
+	//       January 2012
+	//   Su Mo Tu We Th Fr Sa
+	//    1  2  3  4  5  6  7 <- first payday was the 6th
+	//    8  9 10 11 12 13 14
+	//   15 16 17 18 19 20 21
+	//   22 23 24 25 26 27 28
+	//   29 30 31
+	//
+	// So, now I'm using
+	//  * 1st payday is the first Friday occurring after the 5th.
+	// 
+	// This works for now, but if we go back to 2006 (last time New Year's Day was on Sun), I
+	// don't think the 6th was the first payday. Oh well, we'll see what happens in 2018.
+
+	// Subsequent paydays are every two weeks thereafter.
+
+	// Apart from the issue of the first payday, this calculation is still trickier than one would initially expect.
 	
 	var result = false;
 	
@@ -346,7 +382,23 @@ function IsPayday(date) {
 		
 		if (firstPayday === undefined) {
 			var firstDay = new Date(year, 0, 1);
-			firstPayday = new Date(firstDay.getTime() + (12 - firstDay.getDay())*kMillisecondsPerDay);
+
+			// Pick your poison.
+
+			// 1st payday is the second Friday of the year.
+			// var firstFridayOffset = (7 + 5 - firstDay.getDay()) % 7;
+			// firstPayday = new Date(firstDay.getTime() + (firstFridayOffset + 7)*kMillisecondsPerDay);
+
+			// 1st payday is the Friday of second week of the year.
+			// firstPayday = new Date(firstDay.getTime() + (12 - firstDay.getDay())*kMillisecondsPerDay);
+
+			// 1st payday is the first Friday occurring after the 5th.
+			var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
+			if (firstPaydayOffset < 5) {
+				firstPaydayOffset += 7;
+			}
+			firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
+
 			cachedPaydays[year] = firstPayday;
 		}
 		
@@ -1021,7 +1073,7 @@ This saves you from having to do the math when calculating how much vacation you
 
 <li>It's based on information gleaned from the HR and Payroll websites &#151;  plus certain assumptions:</li>
 <ul>
-<li>The Friday of the second week of the year is the first of 26 paydays.</li>
+<li>The first Friday occurring after the 5th of the year is the first of 26 paydays.</li>
 <li>Vacation is earned/lost as of the pay period end &#151; not the payday.</li>
 <li>The accrual rate changes at the end of the first pay period on or after your hire anniversary.</li>
 </ul>
