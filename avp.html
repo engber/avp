@@ -105,6 +105,9 @@ var gReferenceDate;
 var gReferenceDateHours;
 var gMonthsDisplayed;
 
+var gCachedFirstPayDaysInYear = new Array();
+var gCachedLastPayDaysInYear = new Array();
+
 var gCalendarDates;
 
 var gMouseOverCell;
@@ -335,82 +338,57 @@ function MonthTable(year, month) {
 	return table;
 }
 
+function FirstFridayInYear(year) {
+	var result  = new Date(year, 0, 1);
+	var dayOfMonth;
+	for (dayOfMonth = result.getDate(); result.getDay() != 5; result.setDate(++dayOfMonth));
 
-function IsPayday(date) {
-	// The formula for the calculation of the first payday is defeating me.
-	// It may just be arbitrarily decided by payroll each year.
-	//
-	// Initially I used this rule:
-	//   * 1st payday is the second Friday of the year.
-	//
-	// But in 2005, this didn't work, New Years day fell on Sat and the second Friday wasn't the first payday.
-	//
-	//       January 2005
-	//   Su Mo Tu We Th Fr Sa
-	//                      1 <- first week of the year
-	//    2  3  4  5  6  7  8 <- first payday was the 7th
-	//    9 10 11 12 13 14 15 <- 2nd friday occurs during 3rd week of year
-	//   16 17 18 19 20 21 22
-	//   23 24 25 26 27 28 29
-	//   
-	// I surmised this was because the second Friday was during the third week of the year and I refined the rule to:
-	//   * 1st payday is the Friday of second week of the year.
-	//
-	// But, in 2012, this didn't work:
-	//
-	//       January 2012
-	//   Su Mo Tu We Th Fr Sa
-	//    1  2  3  4  5  6  7 <- first payday was the 6th
-	//    8  9 10 11 12 13 14
-	//   15 16 17 18 19 20 21
-	//   22 23 24 25 26 27 28
-	//   29 30 31
-	//
-	// So, now I'm using:
-	//  * 1st payday is the first Friday occurring after the 5th.
-	// 
-	// This fails for 2013:
-	//
-	//       January 2013
-	//   Su Mo Tu We Th Fr Sa
-	//    1  2  3  4  5       <- first payday was the 4th
-	//    6  7  8  9 10 11 12
-	//   13 14 15 16 17 18 19
-	//   20 21 22 23 24 25 26
-	//   27 28 29 30 31
-	//
-	// So, now I'm using:
-	//  * 1st payday is the first Friday occurring after the 3rd.
-	//
-	// This fails for 2014:
-	//
-	//       January 2014
-	//   Su Mo Tu We Th Fr Sa
-	//             1  2  3  4 <- first payday was the 3rd
-	//    5  6  7  8  9 10 11
-	//   12 13 14 15 16 17 18
-	//   19 20 21 22 23 24 25
-	//   26 27 28 29 30 31
-	//
-	// So, now I'm using:
-	//  * 1st payday is the first Friday occurring after the 2rd.
-	//
-	// This fails for 2015:
-	//       January 2015
-	//   Su Mo Tu We Th Fr Sa
-	//                1  2  3 <- first payday was the 2nd
-	//    4  5  6  7  8  9 10
-	//   11 12 13 14 15 16 17
-	//   18 19 20 21 22 23 24
-	//   25 26 27 28 29 30 31
-	//
-	// So, now I'm using:
-	//  * 1st payday is the first Friday.
-	//
-	// Subsequent paydays are every two weeks thereafter.
+	return result;
+}
 
-	// Apart from the issue of the first payday, this calculation is still trickier than one would initially expect.
-	
+function FirstPayDayFromReferenceDate() {
+	var year = gReferenceDate.getFullYear();
+	var firstFridayInYear = FirstFridayInYear(year);
+
+	// Rounding needed because daylight savings time throws our delta off by an hour.
+	var firstPayDayOffset = Math.round((gReferenceDate - firstFridayInYear)/kMillisecondsPerDay) % 14;
+
+	return new Date(year, 0, firstFridayInYear.getDate() + firstPayDayOffset);
+}
+
+function LastPayDayInYear(year)
+{
+	var result = gCachedLastPayDaysInYear[year];
+
+	if (result === undefined) {
+		result  = new Date(year, 11, 18);
+		var dayOfMonth;
+		for (dayOfMonth = result.getDate(); !IsPayday(result); result.setDate(++dayOfMonth));
+		gCachedLastPayDaysInYear[year] = result;
+	}
+
+	return result;
+}
+
+function FirstPayDayInYear(year)
+{
+	var result = gCachedFirstPayDaysInYear[year];
+
+	if (result === undefined) {
+		if (year > gReferenceDate.getFullYear()) {
+			var lastPayDayInPreviousYear = LastPayDayInYear(year - 1);
+			result = new Date(lastPayDayInPreviousYear.getTime() + 14* kMillisecondsPerDay);
+		} else {
+			result = FirstPayDayFromReferenceDate();
+		}
+		gCachedFirstPayDaysInYear[year] = result;
+	}
+
+	return result;
+}
+
+function IsPayday(date)
+{
 	var result = false;
 	
 	if (date.getDay() == 5) {
@@ -418,59 +396,14 @@ function IsPayday(date) {
 		// You might think we can always use the same first payday (e.g. Jan 9, 1970) as our base date.
 		// This doesn't work because a year isn't a multiple of a week.
 		// E.g. The first payday for 2005 is not 2 weeks after the last payday of 2004.
-		var cachedPaydays = IsPayday.cachedFirstPaydays;
-		
-		if (cachedPaydays === undefined) {
-			cachedPaydays = new Object;
-			IsPayday.cachedFirstPaydays = cachedPaydays;
-		}
 		
 		var year = date.getFullYear();
-		var firstPayday = cachedPaydays[year];
-		
-		if (firstPayday === undefined) {
-			var firstDay = new Date(year, 0, 1);
+		var firstPayday = FirstPayDayInYear(year);
 
-			// Pick your poison.
-
-			// 1st payday is the second Friday of the year.
-			// var firstFridayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			// firstPayday = new Date(firstDay.getTime() + (firstFridayOffset + 7)*kMillisecondsPerDay);
-
-			// 1st payday is the Friday of second week of the year.
-			// firstPayday = new Date(firstDay.getTime() + (12 - firstDay.getDay())*kMillisecondsPerDay);
-
-			// 1st payday is the first Friday occurring after the 5th.
-			// var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			// if (firstPaydayOffset < 5) {
-			//	 firstPaydayOffset += 7;
-			// }
-			// firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
-
-			// 1st payday is the first Friday occurring after the 3rd.
-			//var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			//if (firstPaydayOffset < 3) {
-			//	firstPaydayOffset += 7;
-			//}
-			//firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
-
-			// 1st payday is the first Friday occurring after the 2nd.
-			//var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			//if (firstPaydayOffset < 2) {
-			//	firstPaydayOffset += 7;
-			//}
-			//firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
-
-			// 1st payday is the first Friday.
-			var firstPaydayOffset = (7 + 5 - firstDay.getDay()) % 7;
-			firstPayday = new Date(firstDay.getTime() + (firstPaydayOffset)*kMillisecondsPerDay);
-
-			cachedPaydays[year] = firstPayday;
-		}
-		
 		// Rounding needed because daylight savings time throws our delta off by an hour.
 		result = Math.round((date - firstPayday) / kMillisecondsPerDay) % 14 === 0;
 	}
+
 	return result;
 }
 
@@ -547,6 +480,8 @@ function HoursEarned(payday) {
 function SetReferenceDate(date, hours) {
 	gReferenceDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 	gReferenceDateHours = hours;
+	gCachedFirstPayDaysInYear = new Array();
+	gCachedLastPayDaysInYear = new Array();
 }
 
 function DayCellClass(date) {
@@ -907,15 +842,23 @@ function HandleUserChangedHireDate() {
 function HandleUserChangedReferenceDate() {
 	var referenceDateElement = document.getElementById('reference-date');
 	var dateSecs = Date.parse(referenceDateElement.value);
+	var date = null;
 
-	if (isNaN(dateSecs)) {
-		referenceDateElement.value = AmericanDateString(gReferenceDate);
-	} else {
-		var date = new Date(dateSecs);	
+	// Ensure the date is legal and a Friday.
+	if (!isNaN(dateSecs)) {
+		date = new Date(dateSecs);
+		if (date.getDay() != 5) {
+			date = null;
+		}
+	}
+
+	if (date != null) {
 		referenceDateElement.value = AmericanDateString(date);
 		SetReferenceDate(new Date(date), gReferenceDateHours);
 		RecreateCalendar();
 		SaveHireAndReferenceDatesToCookie();
+	} else {
+		referenceDateElement.value = AmericanDateString(gReferenceDate);
 	}
 }
 
