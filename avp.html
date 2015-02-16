@@ -24,7 +24,7 @@
 	-moz-user-select:none;
 }
 
-.day, .dayPayday, .dayPayPeriodEndLosingHours, .dayWeekend, .dayVacation, .dayVacationIllegal, .dayReference, .dayPreReference {
+.day, .dayPayday, .dayLosingHours, .dayWeekend, .dayVacation, .dayVacationInsufficient, .dayReference, .dayPreReference {
 	font-size:12px;
 	text-align:right;
 }
@@ -33,7 +33,7 @@
 	font-weight:bold;
 }
 
-.dayPayPeriodEndLosingHours {
+.dayLosingHours {
 	color:#FF0000;
 }
 
@@ -45,7 +45,7 @@
 	color:#00A000;
 }
 
-.dayVacationIllegal {
+.dayVacationInsufficient {
 	color:#FF0000;
 }
 
@@ -440,17 +440,15 @@ function DayCellClass(date) {
 				if (VacationHoursSpent(date) === 0) {
 					if (IsPayday(date)) {
 						result = 'dayPayday';
-					} else if (IsPayPeriodEnd(date)) {
-						var hours = date.vacationHoursRemaining;
-						var losing = hours !== undefined && hours > kMaxAccrualHours;
-						result = losing ? 'dayPayPeriodEndLosingHours' : 'day';
+					} else if (VacationHoursLost(date) > 0) {
+						result = 'dayLosingHours';
 					} else {
 						result = 'day';
 					}
 				} else {
 					var hours = date.vacationHoursRemaining;
 					var illegal = hours !== undefined && hours < 0;
-					result = illegal ? 'dayVacationIllegal' : 'dayVacation';
+					result = illegal ? 'dayVacationInsufficient' : 'dayVacation';
 				}
 			} else {
 				result = 'dayReference';
@@ -467,6 +465,7 @@ function DayCellClass(date) {
 
 function CalculateVacationAccrual() {
 	var hours = gReferenceDateHours;
+	var hoursLost = 0;
 	for (i in gCalendarDates) {
 		var date = gCalendarDates[i];
 		var cell = date.tableCell;
@@ -477,6 +476,15 @@ function CalculateVacationAccrual() {
 		
 			if (IsPayPeriodEnd(date)) {
 				hours += HoursEarned(date);
+				
+				if (hours > kMaxAccrualHours) {
+					hoursLost += hours - kMaxAccrualHours;
+					hours = kMaxAccrualHours;
+					date.vacationHoursLost = hoursLost;
+				} else {
+					hoursLost = 0;
+					date.vacationHoursLost = 0;
+				}
 			}
 			
 			hours -= VacationHoursSpent(date);
@@ -512,6 +520,10 @@ function InitDatesAndCells(dates, cells) {
 		
 		cell.className = DayCellClass(date);
 	}
+}
+
+function VacationHoursLost(date) {
+	return date.vacationHoursLost === undefined ? 0 : date.vacationHoursLost;
 }
 
 function VacationHoursSpent(date) {
@@ -632,8 +644,8 @@ function UpdateMouseOverHours() {
 			}
 		}
 
-		if (date.vacationHoursRemaining > kMaxAccrualHours) {
-			var hoursLost = Math.round((date.vacationHoursRemaining - kMaxAccrualHours)*100)/100;
+		if (VacationHoursLost(date) > 0) {
+			var hoursLost = Math.round((VacationHoursLost(date))*100)/100;
 			if (hoursLost < 8) {
 				message.push(String(hoursLost).fontcolor("FF0000") + " hours lost");
 			} else {
@@ -948,7 +960,7 @@ Hire Date: <input id='hire-date' size=9 value='' onchange='HandleUserChangedHire
 
 <span style='white-space:nowrap;'>
 Paystub Info &#151;
-<span style='font-size:smaller'>paydate:</span>
+<span style='font-size:smaller'>pay date:</span>
 <input id='reference-date' size=9 value='' onchange='HandleUserChangedReferenceDate();'> </input>
 <span style='font-size:smaller'>vacation-hours:</span>
 <input id='reference-date-hours' size=6 value='' onchange='HandleUserChangedReferenceDateHours();'></input>
@@ -989,7 +1001,7 @@ Double-click to toggle the whole week. Option-click to enter less than 8 hours.
 Vacation days are marked in <span style="color:#00FF00;">green</span>.
 Paydays are in <span style="font-weight:bold;">bold</span>.
 Problem days are marked in <span style="color:#FF0000;">red</span> &#151;
-e.g. days on which you lose vacation hours because you're over the limit &#151; or &#151;
+days on which you lose vacation hours because you're over the limit or
 vacation days for which you don't have enough accumulated hours.
 </p>
  
@@ -998,14 +1010,20 @@ vacation days for which you don't have enough accumulated hours.
 
 <ul>
 
-<li>Vacation is accrued and used at the end of pay periods &#151; the Fridays that fall between paydates.</li>
+<li>Vacation is earned/lost at the end of pay periods &#151; the Fridays that fall between paydays.</li>
 
 <li>Holidays are not taken into account. If you mark a holiday as a vacation day it will be incorrectly subtracted from your accrued vacation.</li>
+
+<li>
+The amount of vacation lost is shown as a cumulative total for consecutive losses.
+E.g. If you lose 3 hours, threes times in a row, the first loss will be shown as 3 hours, the second as 6 hours, and the third as 1.1 days.
+This saves you from having to do the math when calculating how much vacation you need to take in order to avoid a loss.
+</li>
 
 <li>It's based on information gleaned from the HR and Payroll websites &#151;  plus certain assumptions:</li>
 <ul>
 <li>The second Friday of the year is the first of 26 paydays.</li>
-<li>Vacation is earned/available and used as of the pay period end &#151; not the paydate.</li>
+<li>Vacation is earned/lost as of the pay period end &#151; not the payday.</li>
 <li>The accrual rate changes at the end of the first pay period on or after your hire anniversary.</li>
 </ul>
 
