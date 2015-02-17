@@ -789,7 +789,7 @@ function FetchHireAndReferenceDatesFromCookie() {
 	var str = GetCookie(kHireAndReferenceDatesCookieName);
 
 	var hireDateSecs = (new Date()).getTime();
-	var referenceDateSecs = hireDateSecs;
+	var referenceDateSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
 	var referenceDateHours = 0;
 	var monthsDisplayed = 6;
 	
