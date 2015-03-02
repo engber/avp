@@ -10,7 +10,7 @@
 
 <style type="text/css">
 
-.mouseOverHours {
+.messageLine {
 	font-size:14px;
 	text-align:center;
 }
@@ -113,7 +113,8 @@ var gCalendarDates;
 var gMouseOverCell;
 var gSaveVacationDaysTimerId;
 
-function BFindLeftIndex(values, value) {
+function BFindLeftIndex(values, value)
+{
 	// Returns the index of the leftmost elt >= value.
 	// Use result for the index to insert value.
 	var l_index = 0;
@@ -130,7 +131,8 @@ function BFindLeftIndex(values, value) {
 	return l_index;
 }
 
-function BFindIndex(values, value) {
+function BFindIndex(values, value)
+{
 	// Returns the index of value in values or undefined if not found.
 	var result = undefined;
 	var index = BFindLeftIndex(values, value);
@@ -144,7 +146,8 @@ function BFindIndex(values, value) {
 	return result;
 }
 
-function PopupMenuSelect(items, mouseDownEvent, callback) {
+function PopupMenuSelect(items, mouseDownEvent, callback)
+{
 
 	var GetTarget = function(event) {
 		var target = event.target;
@@ -261,7 +264,8 @@ function PopupMenuSelect(items, mouseDownEvent, callback) {
 	return itemElements;
 }
 
-function MonthLength(year, month) {
+function MonthLength(year, month)
+{
 	switch (month) {
 		case  3: // Apr
 		case  5: // Jun
@@ -276,7 +280,8 @@ function MonthLength(year, month) {
 	}
 }
 
-function MonthDates(year, month) {
+function MonthDates(year, month)
+{
 	var result = new Array;
 	var monthLength = MonthLength(year, month);
 	var i;
@@ -286,7 +291,8 @@ function MonthDates(year, month) {
 	return result;
 }
 
-function MonthTable(year, month) {
+function MonthTable(year, month)
+{
 	var table = document.createElement('table');
 	table.className = 'month';
 	
@@ -338,7 +344,8 @@ function MonthTable(year, month) {
 	return table;
 }
 
-function FirstFridayInYear(year) {
+function FirstFridayInYear(year)
+{
 	var result  = new Date(year, 0, 1);
 	var dayOfMonth;
 	for (dayOfMonth = result.getDate(); result.getDay() != 5; result.setDate(++dayOfMonth));
@@ -346,7 +353,8 @@ function FirstFridayInYear(year) {
 	return result;
 }
 
-function FirstPayDayFromReferenceDate() {
+function FirstPayDayFromReferenceDate()
+{
 	var year = gReferenceDate.getFullYear();
 	var firstFridayInYear = FirstFridayInYear(year);
 
@@ -407,16 +415,19 @@ function IsPayday(date)
 	return result;
 }
 
-function IsPayPeriodEnd(date) {
+function IsPayPeriodEnd(date)
+{
 	return date.getDay() == 5 && !IsPayday(date);
 }
 
-function IsWeekday(date) {
+function IsWeekday(date)
+{
 	var dayOfWeek = date.getDay();
 	return dayOfWeek !== 0 && dayOfWeek !== 6;
 }
 
-function AmericanDateString(date) {
+function AmericanDateString(date)
+{
 	var year = date.getFullYear();
 	var month = date.getMonth();
 	var dayNum = date.getDate();
@@ -427,7 +438,8 @@ function AmericanDateString(date) {
 	}
 }
 
-function SetHireDate(hireDate) {
+function SetHireDate(hireDate)
+{
 	var year = hireDate.getFullYear();
 	var month = hireDate.getMonth();
 	var dayNum = hireDate.getDate();
@@ -442,7 +454,8 @@ function SetHireDate(hireDate) {
 	}
 }
 
-function HoursEarned(payday) {
+function HoursEarned(payday)
+{
 	// Assumes caller has ensured payday is actually a legit payday.
 	var result;
 	if (payday < gHireAnniversaries[6]) {
@@ -477,14 +490,16 @@ function HoursEarned(payday) {
 	return result;
 }
 
-function SetReferenceDate(date, hours) {
+function SetReferenceDate(date, hours)
+{
 	gReferenceDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 	gReferenceDateHours = hours;
 	gCachedFirstPayDaysInYear = new Array();
 	gCachedLastPayDaysInYear = new Array();
 }
 
-function DayCellClass(date) {
+function DayCellClass(date)
+{
 	var result;
 	if (IsWeekday(date)) {
 		if (date >= gReferenceDate) {
@@ -515,7 +530,8 @@ function DayCellClass(date) {
 	return result;
 }
 
-function CalculateVacationAccrual() {
+function CalculateVacationAccrual()
+{
 	var hours = gReferenceDateHours;
 	var hoursLost = 0;
 	for (i in gCalendarDates) {
@@ -550,7 +566,8 @@ function CalculateVacationAccrual() {
 	}
 }
 
-function InitDatesAndCells(dates, cells) {
+function InitDatesAndCells(dates, cells)
+{
 	var i;
 	for (i in dates) {
 		var date = dates[i];
@@ -574,15 +591,18 @@ function InitDatesAndCells(dates, cells) {
 	}
 }
 
-function VacationHoursLost(date) {
+function VacationHoursLost(date)
+{
 	return date.vacationHoursLost === undefined ? 0 : date.vacationHoursLost;
 }
 
-function VacationHoursSpent(date) {
+function VacationHoursSpent(date)
+{
 	return date.vacationHoursSpent === undefined ? 0 : date.vacationHoursSpent;
 }
 
-function SetVacationHoursSpent(date, hours) {
+function SetVacationHoursSpent(date, hours)
+{
 	var curHours = date.vacationHoursSpent;
 	if (date.vacationHoursSpent != hours) {
 		if (hours && hours > 0) {
@@ -595,7 +615,8 @@ function SetVacationHoursSpent(date, hours) {
 	}
 }
 
-function EncodedVacationDays() {
+function EncodedVacationDays()
+{
 	var encodedDays = new Array;
 	var i;
 	for (i in gCalendarDates) {
@@ -609,7 +630,8 @@ function EncodedVacationDays() {
 	return encodedDays;
 }
 
-function AddVacationDays(encodedDays) {
+function AddVacationDays(encodedDays)
+{
 	var i;
 	for (i in encodedDays) {
 		var dateAndHours = encodedDays[i].split(":");
@@ -621,7 +643,8 @@ function AddVacationDays(encodedDays) {
 	}
 }
 
-function CreateCalendar() {
+function CreateCalendar()
+{
 	var calendarElement = document.getElementById('calendar');
 	var startYear = gReferenceDate.getFullYear();
 	var startMonth = gReferenceDate.getMonth();
@@ -643,7 +666,8 @@ function CreateCalendar() {
 	}
 }
 
-function RecreateCalendar() {
+function RecreateCalendar()
+{
 
 	var calendarElement = document.getElementById('calendar');
 	while (calendarElement.childNodes.length > 0) {
@@ -659,10 +683,22 @@ function RecreateCalendar() {
 	CalculateVacationAccrual();
 }
 
-function UpdateMouseOverHours() {
-	var hoursElement = document.getElementById('mouse-over-hours');
+function DisplayMessage(message)
+{
+	var messageElement = document.getElementById('message-line');
+
+	if (!message) {
+		message = kNonBreakingSpace;
+	}
+
+	messageElement.innerHTML = message;
+}
+
+function UpdateMouseOverHours()
+{
+	var hoursElement = document.getElementById('message-line');
 	if (gMouseOverCell === null) {
-		hoursElement.innerHTML = kNonBreakingSpace;
+		DisplayMessage();
 	} else {
 		var date = gMouseOverCell.date;
 		var hoursSpent = VacationHoursSpent(date);
@@ -711,24 +747,27 @@ function UpdateMouseOverHours() {
 
 		message.push("as of " + AmericanDateString(date));
 
-		hoursElement.innerHTML = message.join(" " + kEmDash + " ");
+		DisplayMessage(message.join(" " + kEmDash + " "));
 	}
 }
 
-function SetCookie(name, data) {
+function SetCookie(name, data)
+{
 	var expires = new Date;
 	expires.setFullYear(expires.getFullYear() + 2);
 	var str = name + "=" + escape(data) + "; expires=" + expires.toGMTString();
 	document.cookie = str;
 }
 
-function DeleteCookie(name) {
+function DeleteCookie(name)
+{
 	var expires = new Date(0);
 	var str = name + "=X" + "; expires=" + expires.toGMTString();
 	document.cookie = str;
 }
 
-function GetCookie(name) {
+function GetCookie(name)
+{
 	var result = null;
 	var allCookies = document.cookie;
 	
@@ -759,7 +798,8 @@ function GetCookie(name) {
 
 var kVacationDaysCookieName = "vdays";
 
-function SaveVacationDaysToCookie() {
+function SaveVacationDaysToCookie()
+{
 	var encodedDays = EncodedVacationDays();
 	if (encodedDays.length > 0) {
 		SetCookie(kVacationDaysCookieName, encodedDays.toString());
@@ -768,7 +808,8 @@ function SaveVacationDaysToCookie() {
 	}
 }
 
-function AddVacationDaysFromCookie() {
+function AddVacationDaysFromCookie()
+{
 	// Caller needs to ensure no vacation days are already set.
 	var str = GetCookie(kVacationDaysCookieName);
 
@@ -780,12 +821,14 @@ function AddVacationDaysFromCookie() {
 
 var kHireAndReferenceDatesCookieName = "hrdates";
 
-function SaveHireAndReferenceDatesToCookie() {
+function SaveHireAndReferenceDatesToCookie()
+{
 	var dataArray = [gHireAnniversaries[0].getTime(), gReferenceDate.getTime(), gReferenceDateHours, gMonthsDisplayed];
 	SetCookie(kHireAndReferenceDatesCookieName, dataArray.toString());
 }
 
-function FetchHireAndReferenceDatesFromCookie() {
+function FetchHireAndReferenceDatesFromCookie()
+{
 	var str = GetCookie(kHireAndReferenceDatesCookieName);
 
 	var hireDateSecs = (new Date()).getTime();
@@ -825,7 +868,8 @@ function FetchHireAndReferenceDatesFromCookie() {
 	monthsDisplayedElement.value = monthsDisplayed;
 }
 
-function HandleUserChangedHireDate() {
+function HandleUserChangedHireDate()
+{
 	var hireDateElement = document.getElementById('hire-date');
 	var dateSecs = Date.parse(hireDateElement.value);
 	if (isNaN(dateSecs)) {
@@ -839,15 +883,21 @@ function HandleUserChangedHireDate() {
 	}
 }
 
-function HandleUserChangedReferenceDate() {
+function HandleUserChangedReferenceDate()
+{
 	var referenceDateElement = document.getElementById('reference-date');
 	var dateSecs = Date.parse(referenceDateElement.value);
 	var date = null;
+	var dateErrorMessage = "";
+
 
 	// Ensure the date is legal and a Friday.
-	if (!isNaN(dateSecs)) {
+	if (isNaN(dateSecs)) {
+		dateErrorMessage = "Invalid date string \"" + referenceDateElement.value + "\"";
+	} else {
 		date = new Date(dateSecs);
 		if (date.getDay() != 5) {
+			dateErrorMessage = "Invalid pay date - " + referenceDateElement.value + " is not a Friday";
 			date = null;
 		}
 	}
@@ -860,9 +910,12 @@ function HandleUserChangedReferenceDate() {
 	} else {
 		referenceDateElement.value = AmericanDateString(gReferenceDate);
 	}
+
+	DisplayMessage(dateErrorMessage);
 }
 
-function HandleUserChangedReferenceDateHours() {
+function HandleUserChangedReferenceDateHours()
+{
 	var referenceDateHoursElement = document.getElementById('reference-date-hours');
 	var hours = Number(referenceDateHoursElement.value);
 	
@@ -876,7 +929,8 @@ function HandleUserChangedReferenceDateHours() {
 	}
 }
 
-function HandleUserChangedMonthsDisplayed() {
+function HandleUserChangedMonthsDisplayed()
+{
 	var monthsDisplayedElement = document.getElementById('months-displayed');
 	var months = Number(monthsDisplayedElement.value);
 	if (isNaN(months)) {
@@ -889,12 +943,14 @@ function HandleUserChangedMonthsDisplayed() {
 	}
 }
 
-function SaveVacationDayTimerCallback () {
+function SaveVacationDayTimerCallback ()
+{
 	SaveVacationDaysToCookie();
 	delete gSaveVacationDaysTimerId;
 }
 
-function UpdateAfterVactionHoursChanged() {
+function UpdateAfterVactionHoursChanged()
+{
 	CalculateVacationAccrual();
 	UpdateMouseOverHours();
 	if (gSaveVacationDaysTimerId !== undefined) {
@@ -903,7 +959,8 @@ function UpdateAfterVactionHoursChanged() {
 	gSaveVacationDaysTimerId = setTimeout(SaveVacationDayTimerCallback, 3000);
 }
 
-function HandleUserChangedVactionHours(date, hours) {
+function HandleUserChangedVactionHours(date, hours)
+{
 	if (hours !== undefined) {
 		SetVacationHoursSpent(date, hours);
 	}
@@ -912,7 +969,8 @@ function HandleUserChangedVactionHours(date, hours) {
 	UpdateAfterVactionHoursChanged();
 }
 
-function HandleUserMousedDownDay(event) {
+function HandleUserMousedDownDay(event)
+{
 	var cell = event.currentTarget;
 	var date = cell.date;
 	var clickCount = event.detail;
@@ -950,7 +1008,8 @@ function HandleUserMousedDownDay(event) {
 	return true;
 }
 
-function HandleUserMousedOverDay(event) {
+function HandleUserMousedOverDay(event)
+{
 	var cell = event.currentTarget;
 	gMouseOverCell = cell;
 	gMouseOverCell.style.backgroundColor = '#CFCFCF';
@@ -958,7 +1017,8 @@ function HandleUserMousedOverDay(event) {
 	return true;
 }
 
-function HandleUserMousedOutDay(event) {
+function HandleUserMousedOutDay(event)
+{
 	var cell = event.currentTarget;
 	gMouseOverCell.style.backgroundColor = '#FFFFFF';
 	gMouseOverCell = null;
@@ -966,7 +1026,8 @@ function HandleUserMousedOutDay(event) {
 	return true;
 }
 
-function HandleUserShowHelp() {
+function HandleUserShowHelp()
+{
 	var helpElement = document.getElementById('help');
 	var showHelpElement = document.getElementById('show-help');
 	helpElement.style.display = 'inline';
@@ -974,7 +1035,8 @@ function HandleUserShowHelp() {
 	return true;
 }
 
-function HandleUserHideHelp() {
+function HandleUserHideHelp()
+{
 	var helpElement = document.getElementById('help');
 	var showHelpElement = document.getElementById('show-help');
 	helpElement.style.display = 'none';
@@ -982,7 +1044,8 @@ function HandleUserHideHelp() {
 	return true;
 }
 
-function load() {
+function load()
+{
 	
 	FetchHireAndReferenceDatesFromCookie();
 	
@@ -1007,7 +1070,7 @@ function load() {
 <div style='clear:both;'></div>
 
 
-<div id='mouse-over-hours' class='mouseOverHours'>&nbsp;</div>
+<div id='message-line' class='messageLine'>&nbsp;</div>
 
 
 <hr>
