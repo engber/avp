@@ -138,130 +138,12 @@ function BFindIndex(values, value)
 	var index = BFindLeftIndex(values, value);
 	if (index < values.length) {
 		var foundValue = values[index];
-		// can't use == because it's pointer equality for objects
+		// Can't use == because it's pointer equality for objects like dates.
 		if (!(value < foundValue || value > foundValue)) {
 			result = index;
 		}
 	}
 	return result;
-}
-
-function PopupMenuSelect(items, mouseDownEvent, callback)
-{
-
-	var GetTarget = function(event) {
-		var target = event.target;
-		// ignore text nodes
-		return (target.nodeType === Node.TEXT_NODE) ? target.parentNode : target;
-	}
-
-	var mouseDownElement = GetTarget(mouseDownEvent);
-	var popupParentElement = document.body;
-	var popupMenuElement = document.createElement('div');
-	var currentMenuItemIndex = undefined;
-	var movedOffMouseDownElement = false;
-	
-	var MouseDownListener = function(event) {
-		var result = undefined;
-		var target = GetTarget(event);
-		if (target === mouseDownElement) {
-			// Prevent a dismissing click on the mouseDownElement from popping up a new menu.
-			event.stopPropagation();
-			event.preventDefault();
-		} else if (target.parentNode === popupMenuElement) {
-			result = currentMenuItemIndex;
-			event.stopPropagation();
-			event.preventDefault();
-		}
-		EndPopupMenuSelect(result);
-	}
-
-	var MouseUpListener = function(event) {
-		var target = GetTarget(event);
-		if (target === mouseDownElement && !movedOffMouseDownElement) {
-			// Releasing over the mouseDownElement means leave the menu up - dismiss on mouse down.
-		} else {
-			// Releasing anywhere else means we're done.
-			var result = undefined;
-			if (target.parentNode === popupMenuElement) {
-				result = currentMenuItemIndex;
-			}
-			event.stopPropagation();
-			event.preventDefault();
-			EndPopupMenuSelect(result);
-		}
-	}
-	
-	var SupressingListener = function(event) {
-		var target = GetTarget(event);
-		
-		// Convenient spot to detect moving off the mouseDownElement.
-		if (target === mouseDownElement && event.type == 'mouseout') {
-			movedOffMouseDownElement = true;
-		}
-		
-		if (target.parentNode !== popupMenuElement) {
-			event.stopPropagation();
-			event.preventDefault();
-		}
-	}
-	
-	var EndPopupMenuSelect = function(result) {
-		popupParentElement.removeChild(popupMenuElement);
-		document.removeEventListener('mousedown', MouseDownListener, true)
-		document.removeEventListener('mouseup', MouseUpListener, true);
-		document.removeEventListener('mouseover', SupressingListener, true);
-		document.removeEventListener('mouseout', SupressingListener, true);
-		document.removeEventListener('mousemove', SupressingListener, true);
-		callback(result);
-	}
-		
-	document.addEventListener('mousedown', MouseDownListener, true);
-	document.addEventListener('mouseup', MouseUpListener, true);
-	document.addEventListener('mouseover', SupressingListener, true);
-	document.addEventListener('mouseout', SupressingListener, true);
-	document.addEventListener('mousemove', SupressingListener, true);
-
-	var MouseTrackFn = function(itemIndex, itemElement, itemClass) {
-		return function(event) {
-			itemElement.className = itemClass;
-			currentMenuItemIndex = itemIndex;
-		}
-	}
-	
-	var i;
-	var itemElements = new Array;
-	for (i in items) {
-		var item = items[i];
-		var itemElement = document.createElement('div');
-		itemElement.innerHTML = item;
-		itemElement.className = 'popupMenuItem';
-		itemElement.onmouseover = MouseTrackFn(i, itemElement, 'popupMenuItemHilighted');
-		itemElement.onmouseout = MouseTrackFn(undefined, itemElement, 'popupMenuItem');
-		popupMenuElement.appendChild(itemElement);
-		itemElements.push(itemElement);
-	}
-	
-	popupParentElement.appendChild(popupMenuElement);
-	popupMenuElement.className = 'popupMenu';
-
-	var menuTop = mouseDownElement.offsetTop + mouseDownElement.offsetHeight;
-	var menuLeft = mouseDownElement.offsetLeft;
-	var offsetParent = mouseDownElement.offsetParent;
-
-	while (offsetParent) {
-		menuLeft += offsetParent.offsetLeft;
-		menuTop += offsetParent.offsetTop;
-		offsetParent = offsetParent.offsetParent
-	}
-
-	popupMenuElement.style.top = menuTop + "px";
-	popupMenuElement.style.left = menuLeft + "px";
-
-	mouseDownEvent.stopPropagation();
-	mouseDownEvent.preventDefault();
-	
-	return itemElements;
 }
 
 function MonthLength(year, month)
@@ -949,26 +831,6 @@ function SaveVacationDayTimerCallback ()
 	delete gSaveVacationDaysTimerId;
 }
 
-function UpdateAfterVactionHoursChanged()
-{
-	CalculateVacationAccrual();
-	UpdateMouseOverHours();
-	if (gSaveVacationDaysTimerId !== undefined) {
-		clearTimeout(gSaveVacationDaysTimerId);
-	}
-	gSaveVacationDaysTimerId = setTimeout(SaveVacationDayTimerCallback, 3000);
-}
-
-function HandleUserChangedVactionHours(date, hours)
-{
-	if (hours !== undefined) {
-		SetVacationHoursSpent(date, hours);
-	}
-	gMouseOverCell.style.backgroundColor = '#FFFFFF';
-	gMouseOverCell = null;
-	UpdateAfterVactionHoursChanged();
-}
-
 function HandleUserMousedDownDay(event)
 {
 	var cell = event.currentTarget;
@@ -979,16 +841,10 @@ function HandleUserMousedDownDay(event)
 	var newSpentHours;
 
 	if (clickCount == 1) {
-		if (event.altKey) {
-			var callback = function(hours) {HandleUserChangedVactionHours(date, hours);};
-			var itemElements = PopupMenuSelect([0,1,2,3,4,5,6,7,8], event, callback);
-			itemElements[hoursSpent].style.color = '#00A000';
-		} else {
-			newSpentHours = VacationHoursSpent(date) > 0 ? 0 : 8;
-			changedDates.push(date);
-		}
+		newSpentHours = VacationHoursSpent(date) > 0 ? 0 : 8;
+		changedDates.push(date);
 	} else if (clickCount == 2) {
-		// double clicking makes the whole week match the day that was just set (via single click)
+		// Double clicking makes the whole week match the day that was just set (via single click).
 		newSpentHours = hoursSpent;
 		var dayOfWeek = date.getDay();
 		var index = BFindIndex(gCalendarDates, date);
@@ -1002,7 +858,13 @@ function HandleUserMousedDownDay(event)
 			SetVacationHoursSpent(changedDates[i], newSpentHours);
 		}
 
-		UpdateAfterVactionHoursChanged();
+		CalculateVacationAccrual();
+		UpdateMouseOverHours();
+
+		if (gSaveVacationDaysTimerId !== undefined) {
+			clearTimeout(gSaveVacationDaysTimerId);
+		}
+		gSaveVacationDaysTimerId = setTimeout(SaveVacationDayTimerCallback, 3000);
 	}
 
 	return true;
@@ -1046,7 +908,6 @@ function HandleUserHideHelp()
 
 function load()
 {
-	
 	FetchHireAndReferenceDatesFromCookie();
 	
 	// Show help if we failed to fetch basic info - e.g. on the 1st visit.
@@ -1117,7 +978,7 @@ First you must first provide your hire date and a starting point for vacation in
 <p>
 As you mouse over week days in the calendar their vacation hours are displayed below.
 Click on a week day to toggle whether it's a vacation day.
-Double-click to toggle the whole week. Option-click to enter less than 8 hours.
+Double-click to toggle the whole week.
 </p>
 
 <p>
