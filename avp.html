@@ -633,93 +633,52 @@ function UpdateMouseOverHours()
 	}
 }
 
-function SetCookie(name, data)
+const kVacationDaysLocalStorageKey = "vdays";
+
+function SaveVacationDaysToLocalStorage()
 {
-	var expires = new Date;
-	expires.setFullYear(expires.getFullYear() + 2);
-	var str = name + "=" + escape(data) + "; expires=" + expires.toGMTString();
-	document.cookie = str;
-}
-
-function DeleteCookie(name)
-{
-	var expires = new Date(0);
-	var str = name + "=X" + "; expires=" + expires.toGMTString();
-	document.cookie = str;
-}
-
-function GetCookie(name)
-{
-	var result = null;
-	var allCookies = document.cookie;
-	
-	// Add "; " to avoid matching the suffix of another cookie.
-	var prefix = "; " + name + "=";
-	var start = allCookies.indexOf(prefix);
-
-	if (start < 0) {
-		// If it's the first cookie, there's no leading "; " .
-		prefix = name + "=";
-		if (allCookies.indexOf(prefix) === 0) {
-			start = 0;
-		}
-	}
-	
-	if (start >= 0) {
-		start += prefix.length;
-		var end = allCookies.indexOf(";", start);
-		if (end < 0) {
-			end = allCookies.length;
-		}
-		
-		result = unescape(allCookies.substring(start, end));
-	}
-	
-	return result;
-}
-
-var kVacationDaysCookieName = "vdays";
-
-function SaveVacationDaysToCookie()
-{
-	var encodedDays = EncodedVacationDays();
+	const ls = window.localStorage;
+	const encodedDays = EncodedVacationDays();
 	if (encodedDays.length > 0) {
-		SetCookie(kVacationDaysCookieName, encodedDays.toString());
+		ls.setItem(kVacationDaysLocalStorageKey, encodedDays.toString());
 	} else {
-		DeleteCookie(kVacationDaysCookieName);
+		ls.removeItem(kVacationDaysLocalStorageKey);
 	}
 }
 
-function AddVacationDaysFromCookie()
+function AddVacationDaysFromLocalStorage()
 {
 	// Caller needs to ensure no vacation days are already set.
-	var str = GetCookie(kVacationDaysCookieName);
+	const ls = window.localStorage;
+	const str = ls.getItem(kVacationDaysLocalStorageKey);
 
 	if (str !== null) {
-		var encodedDays = str.split(",");
+		const encodedDays = str.split(",");
 		AddVacationDays(encodedDays);
 	}
 }
 
-var kHireAndReferenceDatesCookieName = "hrdates";
+const kHireAndReferenceDatesLocalStorageKey = "hrdates";
 
-function SaveHireAndReferenceDatesToCookie()
+function SaveHireAndReferenceDatesToLocalStorage()
 {
-	var dataArray = [gHireAnniversaries[0].getTime(), gReferenceDate.getTime(), gReferenceDateHours, gMonthsDisplayed];
-	SetCookie(kHireAndReferenceDatesCookieName, dataArray.toString());
+	const ls = window.localStorage;
+	const dataArray = [gHireAnniversaries[0].getTime(), gReferenceDate.getTime(), gReferenceDateHours, gMonthsDisplayed];
+	ls.setItem(kHireAndReferenceDatesLocalStorageKey, dataArray.toString());
 }
 
-function FetchHireAndReferenceDatesFromCookie()
+function FetchHireAndReferenceDatesFromLocalStorage()
 {
-	var str = GetCookie(kHireAndReferenceDatesCookieName);
+	const ls = window.localStorage;
+	const str = ls.getItem(kHireAndReferenceDatesLocalStorageKey);
 
-	var hireDateSecs = (new Date()).getTime();
-	var referenceDateSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
-	var referenceDateHours = 0;
-	var monthsDisplayed = 6;
+	let hireDateSecs = (new Date()).getTime();
+	let referenceDateSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
+	let referenceDateHours = 0;
+	let monthsDisplayed = 6;
 	
 	if (str !== null) {
-		var dataStrs = str.split(",");
+		const dataStrs = str.split(",");
 		if (dataStrs.length == 4) {
 			hireDateSecs = Number(dataStrs[0]);
 			referenceDateSecs = Number(dataStrs[1]);
@@ -732,17 +691,17 @@ function FetchHireAndReferenceDatesFromCookie()
 		}
 	}
 	
-	var hireDate = new Date(hireDateSecs);
-	var referenceDate = new Date(referenceDateSecs);
+	const hireDate = new Date(hireDateSecs);
+	const referenceDate = new Date(referenceDateSecs);
 
 	SetHireDate(hireDate);
 	SetReferenceDate(referenceDate, referenceDateHours);
 	gMonthsDisplayed = monthsDisplayed;
 	
-	var hireDateElement = document.getElementById('hire-date');
-	var referenceDateElement = document.getElementById('reference-date');
-	var referenceDateHoursElement = document.getElementById('reference-date-hours');
-	var monthsDisplayedElement = document.getElementById('months-displayed');
+	const hireDateElement = document.getElementById('hire-date');
+	const referenceDateElement = document.getElementById('reference-date');
+	const referenceDateHoursElement = document.getElementById('reference-date-hours');
+	const monthsDisplayedElement = document.getElementById('months-displayed');
 	
 	hireDateElement.value = AmericanDateString(hireDate);
 	referenceDateElement.value = AmericanDateString(referenceDate);
@@ -761,7 +720,7 @@ function HandleUserChangedHireDate()
 		hireDateElement.value = AmericanDateString(date);
 		SetHireDate(date);
 		CalculateVacationAccrual();
-		SaveHireAndReferenceDatesToCookie();
+		SaveHireAndReferenceDatesToLocalStorage();
 	}
 }
 
@@ -788,7 +747,7 @@ function HandleUserChangedReferenceDate()
 		referenceDateElement.value = AmericanDateString(date);
 		SetReferenceDate(new Date(date), gReferenceDateHours);
 		RecreateCalendar();
-		SaveHireAndReferenceDatesToCookie();
+		SaveHireAndReferenceDatesToLocalStorage();
 	} else {
 		referenceDateElement.value = AmericanDateString(gReferenceDate);
 	}
@@ -807,7 +766,7 @@ function HandleUserChangedReferenceDateHours()
 		SetReferenceDate(gReferenceDate, hours);
 		referenceDateHoursElement.value = gReferenceDateHours; // makes empty string appear as zero
 		CalculateVacationAccrual();
-		SaveHireAndReferenceDatesToCookie();
+		SaveHireAndReferenceDatesToLocalStorage();
 	}
 }
 
@@ -821,13 +780,13 @@ function HandleUserChangedMonthsDisplayed()
 		gMonthsDisplayed = months;
 		monthsDisplayedElement.value = months; // makes empty string appear as zero
 		RecreateCalendar();
-		SaveHireAndReferenceDatesToCookie();
+		SaveHireAndReferenceDatesToLocalStorage();
 	}
 }
 
 function SaveVacationDayTimerCallback ()
 {
-	SaveVacationDaysToCookie();
+	SaveVacationDaysToLocalStorage();
 	delete gSaveVacationDaysTimerId;
 }
 
@@ -908,7 +867,7 @@ function HandleUserHideHelp()
 
 function load()
 {
-	FetchHireAndReferenceDatesFromCookie();
+	FetchHireAndReferenceDatesFromLocalStorage();
 	
 	// Show help if we failed to fetch basic info - e.g. on the 1st visit.
 	if (gHireAndReferenceDateUnset) {
@@ -916,7 +875,7 @@ function load()
 	}
 	
 	CreateCalendar();
-	AddVacationDaysFromCookie();
+	AddVacationDaysFromLocalStorage();
 	CalculateVacationAccrual();
 }
 
