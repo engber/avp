@@ -77,8 +77,8 @@ let gReferenceDate;
 let gReferenceDateHours;
 let gMonthsDisplayed;
 
-let gCachedFirstPayDaysInYear = new Array();
-let gCachedLastPayDaysInYear = new Array();
+const gCachedFirstPaydays = new Array();
+const gCachedLastPayday = new Array();
 
 let gCalendarDates;
 
@@ -207,42 +207,49 @@ function FirstFridayInYear(year)
 	return result;
 }
 
-function FirstPayDayFromReferenceDate()
+function FirstPaydayInYearOfPayday(payday)
 {
-	const year = gReferenceDate.getFullYear();
+	// The first payday in a year is either the first or second friday.
+	// We can determine which using any payday of that year.
+	// The delta between the payday and the first friday should be a multiple of 7 days.
+
+	const year = payday.getFullYear();
 	const firstFridayInYear = FirstFridayInYear(year);
 
 	// Rounding needed because daylight savings time throws our delta off by an hour.
-	const firstPayDayOffset = Math.round((gReferenceDate - firstFridayInYear)/kMillisecondsPerDay) % 14;
+	const firstPayDayOffset = Math.round((payday - firstFridayInYear)/kMillisecondsPerDay) % 14;
 
 	return new Date(year, 0, firstFridayInYear.getDate() + firstPayDayOffset);
 }
 
-function LastPayDayInYear(year)
+function LastPaydayInYear(year)
 {
-	let result = gCachedLastPayDaysInYear[year];
+	let result = gCachedLastPayday[year];
 
 	if (result === undefined) {
 		result  = new Date(year, 11, 18);
 		for (let dayOfMonth = result.getDate(); !IsPayday(result); result.setDate(++dayOfMonth));
-		gCachedLastPayDaysInYear[year] = result;
+		gCachedLastPayday[year] = result;
 	}
 
 	return result;
 }
 
-function FirstPayDayInYear(year)
+function FirstPaydayInYear(year)
 {
-	let result = gCachedFirstPayDaysInYear[year];
+	let result = gCachedFirstPaydays[year];
 
 	if (result === undefined) {
 		if (year > gReferenceDate.getFullYear()) {
-			const lastPayDayInPreviousYear = LastPayDayInYear(year - 1);
-			result = new Date(lastPayDayInPreviousYear.getTime() + 14* kMillisecondsPerDay);
+			// This code assumes the first payday is two weeks after the last payday of the previous year.
+			// This isn't always the case. It seems that someone in Apple payroll determines the first payday
+			// using private criteria which has proven not to be consistently predictable.
+			const lastPayDayInPreviousYear = LastPaydayInYear(year - 1);
+			result = new Date(lastPayDayInPreviousYear.getTime() + 14*kMillisecondsPerDay);
 		} else {
-			result = FirstPayDayFromReferenceDate();
+			result = FirstPaydayInYearOfPayday(gReferenceDate);
 		}
-		gCachedFirstPayDaysInYear[year] = result;
+		gCachedFirstPaydays[year] = result;
 	}
 
 	return result;
@@ -253,13 +260,12 @@ function IsPayday(date)
 	let result = false;
 	
 	if (date.getDay() == 5) {
-		
 		// You might think we can always use the same first payday (e.g. Jan 9, 1970) as our base date.
 		// This doesn't work because a year isn't a multiple of a week.
 		// E.g. The first payday for 2005 is not 2 weeks after the last payday of 2004.
 		
 		const year = date.getFullYear();
-		const firstPayday = FirstPayDayInYear(year);
+		const firstPayday = FirstPaydayInYear(year);
 
 		// Rounding needed because daylight savings time throws our delta off by an hour.
 		result = Math.round((date - firstPayday) / kMillisecondsPerDay) % 14 === 0;
@@ -346,8 +352,8 @@ function SetReferenceDate(date, hours)
 {
 	gReferenceDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 	gReferenceDateHours = hours;
-	gCachedFirstPayDaysInYear = new Array();
-	gCachedLastPayDaysInYear = new Array();
+	gCachedFirstPaydays.length = 0;
+	gCachedLastPayday.length = 0;
 }
 
 function DayCellClass(date)
