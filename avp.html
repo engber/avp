@@ -27,7 +27,7 @@
 	-webkit-user-select:none;
 }
 
-.day, .dayPayday, .dayLosingHours, .dayWeekend, .dayVacation, .dayVacationInsufficient, .dayReference, .dayPreReference {
+.day, .dayPayday, .dayLosingHours, .dayWeekend, .dayVacation, .dayVacationInsufficient, .dayNotAppearingInThisFilm {
 	font-size:12px;
 	text-align:right;
 }
@@ -41,7 +41,7 @@
 }
 
 .dayWeekend {
-	color:#606060;
+	color:#707070;
 }
 
 .dayVacation {
@@ -52,12 +52,8 @@
 	color:#FF0000;
 }
 
-.dayReference {
-	font-weight:bold;
-}
-
-.dayPreReference {
-	color:#606060;
+.dayNotAppearingInThisFilm {
+	color:#707070;
 }
 
 </style>
@@ -260,10 +256,6 @@ function IsPayday(date)
 	let result = false;
 	
 	if (date.getDay() == 5) {
-		// You might think we can always use the same first payday (e.g. Jan 9, 1970) as our base date.
-		// This doesn't work because a year isn't a multiple of a week.
-		// E.g. The first payday for 2005 is not 2 weeks after the last payday of 2004.
-		
 		const year = date.getFullYear();
 		const firstPayday = FirstPaydayInYear(year);
 
@@ -356,30 +348,34 @@ function SetReferenceDate(date, hours)
 	gCachedLastPayday.length = 0;
 }
 
+function ReferenceAccrualDate()
+{
+	// Assume vacation is earned at the end of the pay period. I.e. the Friday before the payday.
+	return new Date(gReferenceDate.getTime() - 7*kMillisecondsPerDay);
+}
+
 function DayCellClass(date)
 {
 	let result;
+	const accrualDate = ReferenceAccrualDate();
+	
 	if (IsWeekday(date)) {
-		if (date >= gReferenceDate) {
-			if (date > gReferenceDate) {
-				if (VacationHoursSpent(date) === 0) {
-					if (IsPayday(date)) {
-						result = "dayPayday";
-					} else if (VacationHoursLost(date) > 0) {
-						result = "dayLosingHours";
-					} else {
-						result = "day";
-					}
+		if (date >= accrualDate) {
+			if (VacationHoursSpent(date) === 0) {
+				if (IsPayday(date)) {
+					result = "dayPayday";
+				} else if (VacationHoursLost(date) > 0) {
+					result = "dayLosingHours";
 				} else {
-					const hours = date.vacationHoursRemaining;
-					const illegal = hours !== undefined && hours < 0;
-					result = illegal ? "dayVacationInsufficient" : "dayVacation";
+					result = "day";
 				}
 			} else {
-				result = "dayReference";
+				const hours = date.vacationHoursRemaining;
+				const illegal = hours !== undefined && hours < 0;
+				result = illegal ? "dayVacationInsufficient" : "dayVacation";
 			}
 		} else {
-			result = "dayPreReference";
+			result = "dayNotAppearingInThisFilm";
 		}
 	} else {
 		result = "dayWeekend";
@@ -392,12 +388,14 @@ function CalculateVacationAccrual()
 {
 	let hours = gReferenceDateHours;
 	let hoursLost = 0;
+	const accrualDate = ReferenceAccrualDate();
+
 	for (const date of gCalendarDates) {
 		const cell = date.tableCell;
 
-		if (date < gReferenceDate) {
+		if (date < accrualDate) {
 			// These dates don't contribute to the calculation.
-		} else if (date > gReferenceDate) {
+		} else if (date > accrualDate) {
 		
 			if (IsPayPeriodEnd(date)) {
 				hours += HoursEarned(date);
@@ -425,6 +423,7 @@ function CalculateVacationAccrual()
 
 function InitDatesAndCells(dates, cells)
 {
+	const accrualDate = ReferenceAccrualDate();
 	for (let i in dates) {
 		const date = dates[i];
 		const cell = cells[i];
@@ -433,9 +432,8 @@ function InitDatesAndCells(dates, cells)
 		cell.date = date;
 		
 		if (IsWeekday(date)) {
-		
-			if (date >= gReferenceDate) {
-				if (date > gReferenceDate) {
+			if (date >= accrualDate) {
+				if (date > accrualDate) {
 					cell.onmousedown = HandleUserMousedDownDay;
 				}
 				cell.onmouseover = HandleUserMousedOverDay;
@@ -641,27 +639,27 @@ function FetchHireAndReferenceDatesFromLocalStorage()
 	const ls = window.localStorage;
 	const str = ls.getItem(kHireAndReferenceDatesLocalStorageKey);
 
-	let hireDateSecs = (new Date()).getTime();
-	let referenceDateSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
+	let hireDateMSecs = (new Date()).getTime();
+	let referenceDateMSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
 	let referenceDateHours = 0;
 	let monthsDisplayed = 6;
 	
 	if (str !== null) {
 		const dataStrs = str.split(",");
 		if (dataStrs.length == 4) {
-			hireDateSecs = Number(dataStrs[0]);
-			referenceDateSecs = Number(dataStrs[1]);
+			hireDateMSecs = Number(dataStrs[0]);
+			referenceDateMSecs = Number(dataStrs[1]);
 			referenceDateHours = Number(dataStrs[2]);
 			monthsDisplayed = Number(dataStrs[3]);
 			
-			if (!isNaN(hireDateSecs) && !isNaN(referenceDateSecs) && !isNaN(referenceDateHours) && !isNaN(monthsDisplayed)) {
+			if (!isNaN(hireDateMSecs) && !isNaN(referenceDateMSecs) && !isNaN(referenceDateHours) && !isNaN(monthsDisplayed)) {
 				gHireAndReferenceDateUnset = false;
 			}
 		}
 	}
 	
-	const hireDate = new Date(hireDateSecs);
-	const referenceDate = new Date(referenceDateSecs);
+	const hireDate = new Date(hireDateMSecs);
+	const referenceDate = new Date(referenceDateMSecs);
 
 	SetHireDate(hireDate);
 	SetReferenceDate(referenceDate, referenceDateHours);
