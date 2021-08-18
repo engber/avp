@@ -208,6 +208,7 @@ function FirstPaydayInYearOfPayday(payday)
 	// The first payday in a year is either the first or second friday.
 	// We can determine which using any payday of that year.
 	// The delta between the payday and the first friday should be a multiple of 7 days.
+	// Even multiple means it's the first friday. Odd multiple means it's the second. 
 
 	const year = payday.getFullYear();
 	const firstFridayInYear = FirstFridayInYear(year);
@@ -239,7 +240,7 @@ function FirstPaydayInYear(year)
 		if (year > gReferenceDate.getFullYear()) {
 			// This code assumes the first payday is two weeks after the last payday of the previous year.
 			// This isn't always the case. It seems that someone in Apple payroll determines the first payday
-			// using private criteria which has proven not to be consistently predictable.
+			// using criteria which, over time, has proven not to be consistently predictable.
 			const lastPayDayInPreviousYear = LastPaydayInYear(year - 1);
 			result = new Date(lastPayDayInPreviousYear.getTime() + 14*kMillisecondsPerDay);
 		} else {
@@ -766,10 +767,11 @@ function HandleUserMousedDownDay(event)
 	let newSpentHours;
 
 	if (clickCount == 1) {
-		newSpentHours = VacationHoursSpent(date) > 0 ? 0 : 8;
+		const hoursToSpend = event.altKey ? 4 : 8; // option-click for half-day
+		newSpentHours = VacationHoursSpent(date) > 0 ? 0 : hoursToSpend;
 		changedDates.push(date);
 	} else if (clickCount == 2) {
-		// Double clicking makes the whole week match the day that was just set (via single click).
+		// Double clicking matches the whole week to the day that was just set (via single click).
 		newSpentHours = hoursSpent;
 		const dayOfWeek = date.getDay();
 		const index = BFindIndex(gCalendarDates, date);
@@ -892,7 +894,7 @@ First you must first provide your hire date and a starting point for vacation in
 <p>
 As you mouse over week days in the calendar their vacation hours are displayed below.
 Click on a week day to toggle whether it's a vacation day.
-Double-click to toggle the whole week.
+Double-click to toggle the whole week. Option-click to enter a half-day.
 </p>
 
 <p>
@@ -918,7 +920,7 @@ E.g. If you lose 3 hours, threes times in a row, the first loss will be shown as
 This saves you from having to do the math when calculating how much vacation you need to take in order to avoid a loss.
 </li>
 
-<li>It's based on information gleaned from the HR and Payroll websites &#151;  plus certain assumptions:</li>
+<li>It's based on information gleaned from the HR and Payroll websites &#151; plus certain assumptions:</li>
 <ul>
 <li>The first Friday occurring after the 5th of the year is the first of 26 paydays.</li>
 <li>Vacation is earned/lost as of the pay period end &#151; not the payday.</li>
