@@ -1,6 +1,6 @@
 
 ### Misc Issues
-- Use BFindLeftIndex
+- Looking into hosting via github-pages
 - Use <details> for help info: https://www.w3schools.com/tags/tag_details.asp
 - Look into using <input type="date">
 - Look into using regexp with input/text pattern attribute to validate text fields.
