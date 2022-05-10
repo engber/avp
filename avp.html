@@ -299,7 +299,7 @@ function SetHireDate(hireDate)
 	
 	gHireAnniversaries = new Array;
 	
-	for (let i = 0; i < 10; ++i) {
+	for (let i = 0; i < 11; ++i) {
 		gHireAnniversaries.push(new Date(year + i, month, dayNum));
 	}
 }
@@ -307,37 +307,11 @@ function SetHireDate(hireDate)
 function HoursEarned(payday)
 {
 	// Assumes caller has ensured payday is actually a legit payday.
-	let result;
-	if (payday < gHireAnniversaries[6]) {
-		if (payday < gHireAnniversaries[4]) {
-			if (payday < gHireAnniversaries[3]) {
-				result = 3.70;
-			} else {
-				result = 4.62;
-			}
-		} else {
-			if (payday < gHireAnniversaries[5]) {
-				result = 4.92;
-			} else {
-				result = 5.23;
-			}
-		}
-	} else {
-		if (payday < gHireAnniversaries[8]) {
-			if (payday < gHireAnniversaries[7]) {
-				result = 5.54;
-			} else {
-				result = 5.85;
-			}
-		} else {
-			if (payday < gHireAnniversaries[9]) {
-				result = 6.15;
-			} else {
-				result = 6.46;
-			}
-		}
-	}
-	return result;
+	//                0,    1,    2,    3,    4,    5,    6,    7,    8,    9,   10
+	const hours = [3.70, 3.70, 3.70, 4.62, 4.92, 5.23, 5.54, 5.85, 6.15, 6.46, 6.77];
+	const index = BFindLeftIndex(gHireAnniversaries, payday);
+
+	return hours[index - 1];
 }
 
 function SetReferenceDate(date, hours)
