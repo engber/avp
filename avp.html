@@ -810,31 +810,16 @@ function HandleUserMousedOutDay(event)
 	UpdateMouseOverHours();
 }
 
-function HandleUserShowHelp()
-{
-	const helpElement = document.getElementById("help");
-	const showHelpElement = document.getElementById("show-help");
-	helpElement.style.display = "inline";
-	showHelpElement.style.visibility = "hidden";
-}
-
-function HandleUserHideHelp()
-{
-	const helpElement = document.getElementById("help");
-	const showHelpElement = document.getElementById("show-help");
-	helpElement.style.display = "none";
-	showHelpElement.style.visibility = "visible";
-}
-
 function load()
 {
 	FetchHireAndReferenceDatesFromLocalStorage();
 	
 	// Show help if we failed to fetch basic info - e.g. on the 1st visit.
 	if (gHireAndReferenceDateUnset) {
-		HandleUserShowHelp();
+		const helpDetailsElement = document.getElementById("help");
+		helpDetailsElement.open = true;
 	}
-	
+
 	CreateCalendar();
 	AddVacationDaysFromLocalStorage();
 	CalculateVacationAccrual();
@@ -878,7 +863,9 @@ Months Displayed:<input id="months-displayed" size=2 value="" onchange="HandleUs
 
 <hr>
 
-<div id="help" style="display:none;">
+<details id="help">
+
+<summary>Help</summary>
 
 <h3>Overview</h3>
 <p>
@@ -944,13 +931,7 @@ This saves you from having to do the math when calculating how much vacation you
 </ul>
 </p>
 
-<div style="text-align:center">
-<input type=button value="Hide Help" onclick="HandleUserHideHelp();"></input>
 </div>
-
-</div>
-
-<input type=button id="show-help" value="?" style="float:right;" onclick="HandleUserShowHelp();"></input>
 
 </body>
 </html>
