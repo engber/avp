@@ -442,13 +442,44 @@ function SetVacationHoursSpent(date, hours)
 	}
 }
 
+// Dates are _now_ encode as yyyy-mm-dd strings.
+// Used to encode as date.getTime(), but this is problematic:
+//	- getTime() encodes using UTC - i.e. it implicitly uses the current time zone.
+//	- Encoded dates were decoded retaining the time zone in which they were created.
+//	- The rest of the code assumes the current time zone - i.e. created with - new Date(year, month, day).
+
+function EncodeDate(date)
+{
+	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function DecodeDate(dateStr)
+{
+	let year, month, day;
+	const match = dateStr.match(/^([0-9]+)-([0-9]+)-([0-9]+)$/);
+	if (match) {
+		const [, yearStr, monthStr, dayStr] = match;
+		year = Number(yearStr);
+		month = Number(monthStr);
+		day = Number(dayStr);
+	} else {
+		// Support for old format - date.getTime() strings.
+		const date = new Date(Number(dateStr));
+		year = date.getFullYear();
+		month = date.getMonth();
+		day = date.getDate();
+	}
+
+	return new Date(year, month, day);
+}
+
 function EncodedVacationDays()
 {
 	const encodedDays = new Array;
 	for (const date of gCalendarDates) {
 		const spent = VacationHoursSpent(date);
 		if (spent > 0) {
-			encodedDays.push(`${date.getTime()}:${spent}`);
+			encodedDays.push(`${EncodeDate(date)}:${spent}`);
 		}
 	}
 	
@@ -459,7 +490,7 @@ function AddVacationDays(encodedDays)
 {
 	for (const encodedDay of encodedDays) {
 		const [dateStr, hoursStr] = encodedDay.split(":");
-		const date = new Date(Number(dateStr));
+		const date = DecodeDate(dateStr);
 		const index = BFindIndex(gCalendarDates, date);
 		if (index !== undefined) {
 			SetVacationHoursSpent(gCalendarDates[index], Number(hoursStr));
@@ -604,7 +635,7 @@ const kHireAndReferenceDatesLocalStorageKey = "hrdates";
 function SaveHireAndReferenceDatesToLocalStorage()
 {
 	const ls = window.localStorage;
-	const dataArray = [gHireAnniversaries[0].getTime(), gReferenceDate.getTime(), gReferenceDateHours, gMonthsDisplayed];
+	const dataArray = [EncodeDate(gHireAnniversaries[0]), EncodeDate(gReferenceDate), gReferenceDateHours, gMonthsDisplayed];
 	ls.setItem(kHireAndReferenceDatesLocalStorageKey, dataArray.toString());
 }
 
@@ -613,28 +644,25 @@ function FetchHireAndReferenceDatesFromLocalStorage()
 	const ls = window.localStorage;
 	const str = ls.getItem(kHireAndReferenceDatesLocalStorageKey);
 
-	let hireDateMSecs = (new Date()).getTime();
-	let referenceDateMSecs = FirstFridayInYear((new Date()).getFullYear()).getTime();
+	let hireDate = new Date();
+	let referenceDate = FirstFridayInYear((new Date()).getFullYear());
 	let referenceDateHours = 0;
-	let monthsDisplayed = 6;
+	let monthsDisplayed = 18;
 	
 	if (str !== null) {
 		const dataStrs = str.split(",");
 		if (dataStrs.length == 4) {
-			hireDateMSecs = Number(dataStrs[0]);
-			referenceDateMSecs = Number(dataStrs[1]);
+			hireDate = DecodeDate(dataStrs[0]);
+			referenceDate = DecodeDate(dataStrs[1]);
 			referenceDateHours = Number(dataStrs[2]);
 			monthsDisplayed = Number(dataStrs[3]);
 			
-			if (!isNaN(hireDateMSecs) && !isNaN(referenceDateMSecs) && !isNaN(referenceDateHours) && !isNaN(monthsDisplayed)) {
+			if (!isNaN(hireDate) && !isNaN(referenceDate) && !isNaN(referenceDateHours) && !isNaN(monthsDisplayed)) {
 				gHireAndReferenceDateUnset = false;
 			}
 		}
 	}
 	
-	const hireDate = new Date(hireDateMSecs);
-	const referenceDate = new Date(referenceDateMSecs);
-
 	SetHireDate(hireDate);
 	SetReferenceDate(referenceDate, referenceDateHours);
 	gMonthsDisplayed = monthsDisplayed;
@@ -884,14 +912,27 @@ vacation days for which you don't have enough accumulated hours.
 <ul>
 
 <li>Vacation is earned/lost at the end of pay periods &#151; the Fridays that fall between paydays.</li>
+<br>
 
 <li>Holidays are not taken into account. If you mark a holiday as a vacation day it will be incorrectly subtracted from your accrued vacation.</li>
+<br>
 
 <li>
 The amount of vacation lost is shown as a cumulative total for consecutive losses.
 E.g. If you lose 3 hours, threes times in a row, the first loss will be shown as 3 hours, the second as 6 hours, and the third as 1.1 days.
 This saves you from having to do the math when calculating how much vacation you need to take in order to avoid a loss.
 </li>
+<br>
+
+<li>
+	Unfortunately, Safari deletes local storage after 7 days of disuse.
+	This means, if you don't visit this page for a week, you'll lose all the data you've entered.
+	This is not a problem for other browsers like Chrome of Firefox.
+	A workaround on iOS is to mark the page as a favorite.
+	On MacOS, you can try making the page your default home page to ensure regular visits - ugh!
+	Hopefully, the local storage policy will change in the future.
+</li>	
+<br>
 
 <li>It's based on information gleaned from the HR and Payroll websites &#151; plus certain assumptions:</li>
 <ul>
