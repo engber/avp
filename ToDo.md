@@ -1,6 +1,9 @@
 
 ### Misc Issues
 - Support A2HS - Adding to Home Screen - this prevents clearing of local storage by Safari.
+    - Not currently possible on MacOS?
+    - On iOS, it's done in a non-standard way - no manifest required.
+    - Presumably Safari will, at some point, support the standard.
     - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Add_to_home_screen
     - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Installable_PWAs
 - Looking into hosting via github-pages
