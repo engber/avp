@@ -1,5 +1,8 @@
 
 ### Misc Issues
+- Support A2HS - Adding to Home Screen - this prevents clearing of local storage by Safari.
+    - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Add_to_home_screen
+    - https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Installable_PWAs
 - Looking into hosting via github-pages
 - Look into using <input type="date">
 - Look into using regexp with input/text pattern attribute to validate text fields.
