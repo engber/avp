@@ -421,12 +421,12 @@ function InitDatesAndCells(dates, cells)
 
 function VacationHoursLost(date)
 {
-	return date.vacationHoursLost === undefined ? 0 : date.vacationHoursLost;
+	return date.vacationHoursLost ?? 0;
 }
 
 function VacationHoursSpent(date)
 {
-	return date.vacationHoursSpent === undefined ? 0 : date.vacationHoursSpent;
+	return date.vacationHoursSpent ?? 0;
 }
 
 function SetVacationHoursSpent(date, hours)
@@ -442,7 +442,7 @@ function SetVacationHoursSpent(date, hours)
 	}
 }
 
-// Dates are _now_ encode as yyyy-mm-dd strings.
+// Dates are _now_ encoded as yyyy-mm-dd strings.
 // Used to encode as date.getTime(), but this is problematic:
 //	- getTime() encodes using UTC - i.e. it implicitly uses the current time zone.
 //	- Encoded dates were decoded retaining the time zone in which they were created.
