@@ -6,7 +6,8 @@
 - Looking into hosting via github-pages
 - Look into using <input type="date">
 - Look into using regexp with input/text pattern attribute to validate text fields.
-- favicon
+- favicon - might dovetail with manifest required by A2HS
+- Error message if reference date < hire date. Currently, it just silently fails.
 
 ### Persistance of Data
 - Safari wipes out local storage after 7 days.
