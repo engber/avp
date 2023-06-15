@@ -11,8 +11,15 @@
 - Look into using regexp with input/text pattern attribute to validate text fields.
 - favicon - might dovetail with manifest required by A2HS
 - Error message if reference date < hire date. Currently, it just silently fails.
+- Display months starting from current month as opposed to reference date.
 
 ### Persistance of Data
 - Safari wipes out local storage after 7 days.
     - https://www.theregister.com/2020/03/26/apple_relax_were_not_totally/
 - One workaround is to make avp your home page, but downside is new windows do _not_ start out with the address bar focused. Is there a way to give the address bar focus on page load?
+
+### Sonoma Add To Dock
+- Seems to zap local storage.
+- Safari windows seem more shrinkable than web-app windows.
+- Is there a way to know I'm being loaded as a web-app?
+- WebApps show up in ~/Applications
